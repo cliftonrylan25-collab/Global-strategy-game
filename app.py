@@ -401,4 +401,3 @@ else:
     st.markdown("### SYSTEM LOG")
     log_content = "<br>".join([f"> {msg}" for msg in reversed(st.session_state.log[-7:])])
     st.markdown(f'<div class="terminal-box">{log_content}</div>', unsafe_allow_html=True)
-
