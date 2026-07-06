@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 class Nation: 
     def __init__(self, name, iso_alpha, economy, military_power): 
         self.name = name 
-        self.iso_alpha = iso_alpha # Required for precise Plotly mapping
+        self.iso_alpha = iso_alpha 
         self.original_name = name  
         self.economy = economy 
         self.base_military = military_power
@@ -17,7 +17,7 @@ class Nation:
         self.conquered_by = None
         self.units = { "infantry": 0, "tanks": 0, "jets": 0, "orbital_satellites": 0 }
         
-        # Skill Tree Unlocks
+        # 4-Branch Skill Tree Layout
         self.skills = {
             "repairs": False, "off_road": False, "sohc_4_valve": False,
             "situational_awareness": False, "recon": False, "aerospace": False,
@@ -67,28 +67,29 @@ def render_interactive_map(nations, player):
     locations = []
     z_values = []
     hover_texts = []
-    colorscale = [[0, '#2d232e'], [0.33, '#d95763'], [0.66, '#3e734e'], [1.0, '#597dce']]
+    
+    # Value keys: 0 = Unoccupied/Defeated AI, 1 = Rival Targets, 2 = Occupied Territories, 3 = Player Core
+    colorscale = [[0.0, '#2d232e'], [0.33, '#d95763'], [0.66, '#3e734e'], [1.0, '#597dce']]
 
     for nation in nations:
         locations.append(nation.iso_alpha)
-        
         if nation.is_eliminated:
             if nation.conquered_by == player.name:
-                status_val = 2  # Conquered by Player (Green)
+                status_val = 2  
                 status_txt = f"Conquered by {player.name.upper()}"
             else:
-                status_val = 0  # Eliminated by AI (Dark/Neutral)
-                status_txt = f"Eliminated by {nation.conquered_by}"
+                status_val = 0  
+                status_txt = f"Eliminated by {nation.conquered_by.upper()}"
         else:
             if nation.name == player.name:
-                status_val = 3  # Player Empire (Blue)
-                status_txt = "PLAYER EMPIRE"
+                status_val = 3  
+                status_txt = "PLAYER EMPIRE HEADQUARTERS"
             else:
-                status_val = 1  # Active Rival Target (Red)
-                status_txt = f"Rival Power (Mil: {nation.military_power():.1f})"
+                status_val = 1  
+                status_txt = f"Active Rival Faction (Mil Power: {nation.military_power():.1f})"
                 
         z_values.append(status_val)
-        hover_texts.append(f"<b>{nation.name.upper()}</b><br>Status: {status_txt}<br>Economy: ${nation.economy}M")
+        hover_texts.append(f"<b>{nation.name.upper()}</b><br>Status: {status_txt}<br>Economy Portfolio: ${nation.economy}M")
 
     fig = go.Figure(data=go.Choropleth(
         locations=locations,
@@ -98,7 +99,7 @@ def render_interactive_map(nations, player):
         colorscale=colorscale,
         showscale=False,
         marker_line_color='#1a1c2c',
-        marker_line_width=1.5,
+        marker_line_width=1.2,
     ))
 
     fig.update_layout(
@@ -112,23 +113,22 @@ def render_interactive_map(nations, player):
             coastlinecolor='#4a3d4c'
         ),
         margin=dict(l=0, r=0, t=0, b=0),
-        height=400,
+        height=320,
         paper_bgcolor='#1a1c2c'
     )
     return fig
 
 # =========================
-# HELPER FOR SELECTION NODE
+# SKILL NODE COMPONENT
 # =========================
 def render_skill_node(player, skill_id, display_name, cost, info_html, is_available):
     col_node, col_card = st.columns([1, 4])
-    
     with col_node:
         if player.skills[skill_id]:
-            st.markdown("<h3 style='text-align:center; margin:0; padding-top:12px; color:#3bb87c;'>✅</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-align:center; margin:0; padding-top:10px; color:#3bb87c;'>✅</h3>", unsafe_allow_html=True)
         elif is_available and not st.session_state.action_tracking["research"]:
             st.write("")
-            if st.button("🟢", key=f"node_{skill_id}", help=f"Tap to research {display_name}"):
+            if st.button("🟢", key=f"node_{skill_id}"):
                 if player.economy >= cost:
                     player.economy -= cost
                     player.skills[skill_id] = True
@@ -138,22 +138,22 @@ def render_skill_node(player, skill_id, display_name, cost, info_html, is_availa
                 else:
                     st.error("INSUFFICIENT ECONOMY")
         else:
-            st.markdown("<h3 style='text-align:center; margin:0; padding-top:12px; color:#4a3d4c;'>🔒</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-align:center; margin:0; padding-top:10px; color:#4a3d4c;'>🔒</h3>", unsafe_allow_html=True)
             
     with col_card:
         card_border = "#597dce" if player.skills[skill_id] else ("#3bb87c" if is_available else "#4a3d4c")
         st.markdown(f"""
             <div class='skill-card' style='border-color: {card_border}'>
-                <b>{display_name}</b><br>Cost: ${cost}M
+                <b>{display_name}</b> | ${cost}M
                 <details class='info-drawer'>
-                    <summary>ℹ️ Info</summary>
+                    <summary>📁 Specs</summary>
                     {info_html}
                 </details>
             </div>
         """, unsafe_allow_html=True)
 
 # =========================
-# STREAMLIT APP & UI
+# INTERACTIVE CUSTOM UI
 # =========================
 st.set_page_config(page_title="Global Conquest", layout="wide") 
 
@@ -162,29 +162,31 @@ pixel_css = """
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 html, body, [class*="css"], [class*="st-"]  { font-family: 'Press Start 2P', cursive !important; }
 .stApp { background-color: #2d232e; color: #f4f4f4; }
-h1 { color: #f4f4f4 !important; text-shadow: 4px 4px #d95763; text-align: center; margin-bottom: 20px; }
-h2, h3 { color: #597dce !important; }
-div[data-testid="metric-container"] { background-color: #1a1c2c; border: 3px solid #4a3d4c; padding: 10px; border-radius: 0px; box-shadow: 3px 3px 0px #000000; }
-div[data-testid="stMetricValue"] { color: #f4f4f4 !important; font-size: 14px !important; }
-.stButton>button { border: 4px solid #1a1c2c; background-color: #d95763; color: white; border-radius: 0px; box-shadow: 4px 4px 0px #000000; transition: 0.1s; font-size: 12px; padding: 10px; width: 100%; margin-top: 10px; }
-.stButton>button:active { box-shadow: 0px 0px 0px #000000; transform: translateY(4px) translateX(4px); background-color: #ac3232; }
-div.row-widget.stRadio > div { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 15px; border-radius: 0px; }
-.stRadio label { padding-bottom: 12px; line-height: 1.5; }
-.terminal-box { background-color: #000000; border: 2px solid #597dce; padding: 15px; color: #3e734e; font-family: monospace !important; font-size: 12px; height: 180px; overflow-y: auto; }
+h1 { color: #f4f4f4 !important; text-shadow: 4px 4px #d95763; text-align: center; margin-bottom: 20px; font-size: 22px; }
+h2, h3 { color: #597dce !important; font-size: 14px; }
+div[data-testid="metric-container"] { background-color: #1a1c2c; border: 3px solid #4a3d4c; padding: 8px; box-shadow: 3px 3px 0px #000000; }
+div[data-testid="stMetricValue"] { color: #f4f4f4 !important; font-size: 11px !important; }
+.stButton>button { border: 4px solid #1a1c2c; background-color: #d95763; color: white; border-radius: 0px; box-shadow: 3px 3px 0px #000000; font-size: 10px; padding: 8px; width: 100%; }
+.stButton>button:active { box-shadow: 0px 0px 0px #000000; transform: translateY(3px) translateX(3px); background-color: #ac3232; }
+div.row-widget.stRadio > div { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 10px; }
+.stRadio label { padding-bottom: 8px; font-size: 10px; }
+.terminal-box { background-color: #000000; border: 2px solid #597dce; padding: 12px; color: #3e734e; font-family: monospace !important; font-size: 11px; height: 140px; overflow-y: auto; }
+.map-legend { display: flex; justify-content: space-around; background: #1a1c2c; padding: 8px; font-size: 8px; border: 2px solid #4a3d4c; margin-top: -10px; margin-bottom: 15px; }
+.legend-item { display: flex; align-items: center; }
+.legend-color { width: 12px; height: 12px; margin-right: 6px; border: 1px solid #fff; }
 
-/* Skill Tree Styling */
-.skill-card { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 10px; margin-bottom: 12px; text-align: center; font-size: 9px; line-height: 1.4; }
-.info-drawer { font-size: 8px; margin-top: 6px; text-align: left; background: #2d232e; padding: 5px; border-left: 2px solid #597dce; }
-.info-drawer summary { cursor: pointer; color: #597dce; font-weight: bold; list-style: none; outline: none; text-align: center; }
-.info-drawer summary::-webkit-details-marker { display: none; }
-.buff-txt { color: #3bb87c; margin-top: 4px; display: block; }
+/* Node Cards */
+.skill-card { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 8px; margin-bottom: 8px; text-align: center; font-size: 8px; }
+.info-drawer { font-size: 7px; margin-top: 4px; text-align: left; background: #2d232e; padding: 4px; border-left: 2px solid #597dce; }
+.info-drawer summary { cursor: pointer; color: #597dce; text-align: center; list-style: none; }
+.buff-txt { color: #3bb87c; display: block; margin-top: 2px; }
 </style>
 """
 st.markdown(pixel_css, unsafe_allow_html=True)
-st.markdown("<h1>Global Conquest</h1>", unsafe_allow_html=True)
+st.markdown("<h1>Global Conquest: Retro</h1>", unsafe_allow_html=True)
 
 # =========================
-# GAME INITIALIZATION
+# STATE INITIALIZATION
 # =========================
 if "game_started" not in st.session_state: 
     st.session_state.game_started = False 
@@ -199,8 +201,8 @@ nations = st.session_state.nations
 
 if not st.session_state.game_started: 
     st.markdown("### INITIALIZE CAMPAIGN")
-    choice = st.radio("Select Superpower Faction:", [n.name for n in nations]) 
-    if st.button("COMMENCE DOMINATION"): 
+    choice = st.radio("Select Starting Empire:", [n.name for n in nations]) 
+    if st.button("COMMENCE PLANETARY DOMINATION"): 
         st.session_state.player = next(n for n in nations if n.name == choice) 
         st.session_state.game_started = True 
         st.rerun()
@@ -209,145 +211,126 @@ else:
     remaining_enemies = [n for n in nations if n != player and not n.is_eliminated]
     
     if not remaining_enemies:
-        st.success("👑 TOTAL PLANETARY UNIFICATION ACHIEVED.")
+        st.success("👑 SYSTEM NOTIFICATION: PLANETARY CONQUEST COMPLETE.")
     elif player.is_eliminated:
-        st.error(f"💀 YOUR EMPIRE HAS FALLEN. CONQUERED BY {player.conquered_by.upper()}.")
+        st.error(f"💀 EMPIRE CRUSHED BY THE ARMIES OF {player.conquered_by.upper()}.")
     else:
-        st.markdown(f"### TURN: {st.session_state.turn}")
+        st.markdown(f"### CYCLE STATUS: TURN {st.session_state.turn}")
         
-        # Dashboard
+        # Stats Grid
         col1, col2, col3 = st.columns(3)
-        col1.metric("💰 ECON", f"${player.economy}M")
-        col2.metric("⚔️ MILITARY", f"{player.military_power():.1f}")
-        col3.metric("🔥 EXHAUSTION", f"{player.war_exhaustion}")
+        col1.metric("💰 BANK", f"${player.economy}M")
+        col2.metric("⚔️ POWER", f"{player.military_power():.1f}")
+        col3.metric("🔥 FATIGUE", f"{player.war_exhaustion}")
         
-        st.markdown(f"**GARRISON:** 🎖️ Inf: {player.units['infantry']} | 🚜 Tanks: {player.units['tanks']} | ✈️ Jets: {player.units['jets']} | 🛰️ Sats: {player.units['orbital_satellites']}")
+        st.markdown(f"<div style='font-size:8px; text-align:center; padding-bottom:10px;'>Assets: 🎖️ Inf x{player.units['infantry']} | 🚜 Tank x{player.units['tanks']} | ✈️ Jet x{player.units['jets']} | 🛰️ Sat x{player.units['orbital_satellites']}</div>", unsafe_allow_html=True)
         st.write("---")
         
-        # Command Division Status Badges
-        d_status = "🔒 LOCKED" if st.session_state.action_tracking['deploy'] else "🟢 READY"
-        r_status = "🔒 LOCKED" if st.session_state.action_tracking['research'] else "🟢 READY"
-        a_status = "🔒 LOCKED" if st.session_state.action_tracking['aerospace'] else "🟢 READY"
-        c_status = "🔒 LOCKED" if st.session_state.action_tracking['covert'] else "🟢 READY"
-        s_status = "🔒 LOCKED" if st.session_state.action_tracking['strike'] else "🟢 READY"
+        # Division Status Flags
+        d_status = "🔒" if st.session_state.action_tracking['deploy'] else "🟢"
+        r_status = "🔒" if st.session_state.action_tracking['research'] else "🟢"
+        a_status = "🔒" if st.session_state.action_tracking['aerospace'] else "🟢"
+        c_status = "🔒" if st.session_state.action_tracking['covert'] else "🟢"
+        s_status = "🔒" if st.session_state.action_tracking['strike'] else "🟢"
 
         action_mode = st.radio(
-            "COMMAND TERMINAL COMPONENTS:",
+            "CHOOSE THE ACTIVE DIVISION:",
             [
-                f"🛠️ Deploy Forces [{d_status}]", 
-                f"🌳 Skill Tree (R&D) [{r_status}]",
-                f"🚀 Aerospace Command [{a_status}]", 
-                f"🕵️ Covert Operations [{c_status}]",
-                f"⚔️ Execute Strike [{s_status}]", 
-                "⏭️ End Turn Cycle"
+                f"🛠️ Requisition & Deploy Assets [{d_status}]", 
+                f"🌳 Research Lab Matrix [{r_status}]",
+                f"🚀 Stratosphere Flight Command [{a_status}]", 
+                f"🕵️ Deep Cover Espionage [{c_status}]",
+                f"⚔️ Operational Strike Vector [{s_status}]", 
+                "⏭️ Execute End Turn Sequence"
             ]
         )
         st.write("---")
         
-        # Action: DEPLOY FORCES
-        if "🛠️ Deploy Forces" in action_mode:
+        # 1. DEPLOY
+        if "🛠️" in action_mode:
             if not st.session_state.action_tracking["deploy"]:
-                unit = st.radio("Requisition Assets", [
-                    "Infantry Battalion (Cost: 10)", 
-                    "Armored Tanks (Cost: 25)",
-                    "Fighter Squadron (Cost: 40)"
-                ])
-                if st.button("CONFIRM DEPLOYMENT"):
+                unit = st.radio("Asset Array Selection:", ["Infantry Battalion ($10M)", "Armored Division ($25M)", "Interceptor Squadron ($40M)"])
+                if st.button("DEPLOY REQUISITIONS"):
                     if "Infantry" in unit: cost, key = 10, "infantry"
-                    elif "Tanks" in unit: cost, key = 25, "tanks"
+                    elif "Armored" in unit: cost, key = 25, "tanks"
                     else: cost, key = 40, "jets"
                     
                     if player.economy >= cost:
                         player.economy -= cost
                         player.units[key] += 1
                         st.session_state.action_tracking["deploy"] = True
-                        st.session_state.log.append(f"PRODUCTION: {key.upper()} deployed.")
+                        st.session_state.log.append(f"PRODUCTION: {key.upper()} deployed to operational status.")
                         st.rerun()
                     else:
-                        st.error("SYSTEM ERROR: INSUFFICIENT FUNDS.")
+                        st.error("LOGISTICS FAILURE: FUNDS DEFICT.")
             else:
-                st.warning("🔒 LOGISTICS DIVISION LOCKED: Finished production plans this cycle.")
+                st.warning("🔒 Logistics deployment locks reset at the turn change.")
 
-        # Action: SKILL TREE 
-        elif "🌳 Skill Tree" in action_mode:
-            st.markdown("### 🧬 EMPIRE TECH TREE")
+        # 2. SKILL TREE (Based on image layout)
+        elif "🌳" in action_mode:
+            st.markdown("### 🧬 SYSTEM R&D TECHNOLOGY NETWORK")
             if st.session_state.action_tracking["research"]:
-                st.warning("🔒 LABORATORY DIVISION LOCKED: Upgrades finalized for this cycle.")
+                st.warning("🔒 Research vectors filled for current tactical turn loop.")
             
             t1, t2, t3, t4 = st.columns(4)
             
-            # --- MOBILITY PATH ---
             with t1:
-                st.markdown("<span style='color:#e4c34a'>⚡ MOBILITY</span>", unsafe_allow_html=True)
-                m1_avail = not player.skills["repairs"]
-                render_skill_node(player, "repairs", "Repairs", 15, "Field repair crews assigned.<br><span class='buff-txt'>⚡ Buff: Speeds up armor deployment.</span>", m1_avail)
+                st.markdown("<span style='color:#e4c34a; font-size:9px;'>⚡ MOBILITY</span>", unsafe_allow_html=True)
+                m1 = not player.skills["repairs"]
+                render_skill_node(player, "repairs", "Repairs", 15, "Speed up logistics assemblies.<br><span class='buff-txt'>+ Fast tracking production loops.</span>", m1)
+                m2 = player.skills["repairs"] and not player.skills["off_road"]
+                render_skill_node(player, "off_road", "Off-Road", 30, "All-terrain modular frames.<br><span class='buff-txt'>+ Cuts geographical delay costs.</span>", m2)
+                m3 = player.skills["off_road"] and not player.skills["sohc_4_valve"]
+                render_skill_node(player, "sohc_4_valve", "SOHC 4V Engine", 60, "High-rev valvetrain updates.<br><span class='buff-txt'>+ Armored Tank Power +2.</span>", m3)
                 
-                m2_avail = player.skills["repairs"] and not player.skills["off_road"]
-                render_skill_node(player, "off_road", "Off-Road", 30, "All-terrain optimizations.<br><span class='buff-txt'>⚡ Buff: Mitigates deployment fatigue.</span>", m2_avail)
-                
-                m3_avail = player.skills["off_road"] and not player.skills["sohc_4_valve"]
-                render_skill_node(player, "sohc_4_valve", "SOHC 4V", 60, "High-perf camshaft layouts.<br><span class='buff-txt'>⚡ Buff: Increases Tank Power by +2.</span>", m3_avail)
-                
-            # --- SPOTTING PATH ---
             with t2:
-                st.markdown("<span style='color:#9c66d1'>👁️ SPOTTING</span>", unsafe_allow_html=True)
-                s1_avail = not player.skills["situational_awareness"]
-                render_skill_node(player, "situational_awareness", "Sit Aware", 15, "Real-time tracking architecture.<br><span class='buff-txt'>⚡ Buff: Protects logistics networks.</span>", s1_avail)
+                st.markdown("<span style='color:#9c66d1; font-size:9px;'>👁️ SPOTTING</span>", unsafe_allow_html=True)
+                s1 = not player.skills["situational_awareness"]
+                render_skill_node(player, "situational_awareness", "Sit-Aware", 15, "Automated alert infrastructure.<br><span class='buff-txt'>+ Protects economic networks.</span>", s1)
+                s2 = player.skills["situational_awareness"] and not player.skills["recon"]
+                render_skill_node(player, "recon", "Recon", 30, "Deep-territory scouts map roots.<br><span class='buff-txt'>+ Softens fail modifiers.</span>", s2)
+                s3 = player.skills["recon"] and not player.skills["aerospace"]
+                render_skill_node(player, "aerospace", "Aerospace", 100, "Low-Earth tracking satellite grids.<br><span class='buff-txt'>+ Unlocks Orbital Strike matrix.</span>", s3)
                 
-                s2_avail = player.skills["situational_awareness"] and not player.skills["recon"]
-                render_skill_node(player, "recon", "Recon", 30, "Forward advance route-mapping.<br><span class='buff-txt'>⚡ Buff: Lowers invasion fail rates.</span>", s2_avail)
-                
-                s3_avail = player.skills["recon"] and not player.skills["aerospace"]
-                render_skill_node(player, "aerospace", "Aerospace", 100, "Unlocks satellite nexus.<br><span class='buff-txt'>⚡ Buff: Grants access to Orbital Strikes.</span>", s3_avail)
-                
-            # --- SURVIVABILITY PATH ---
             with t3:
-                st.markdown("<span style='color:#d97e41'>🛡️ SURVIVE</span>", unsafe_allow_html=True)
-                v1_avail = not player.skills["firefighting"]
-                render_skill_node(player, "firefighting", "Firefight", 15, "Automated containment panels.<br><span class='buff-txt'>⚡ Buff: Restricts combat casualties.</span>", v1_avail)
+                st.markdown("<span style='color:#d97e41; font-size:9px;'>🛡️ SURVIVAL</span>", unsafe_allow_html=True)
+                v1 = not player.skills["firefighting"]
+                render_skill_node(player, "firefighting", "Firefight", 15, "Automated compartment blocks.<br><span class='buff-txt'>+ Limits surprise casualties.</span>", v1)
+                v2 = player.skills["firefighting"] and not player.skills["armorer"]
+                render_skill_node(player, "armorer", "Armorer", 30, "Reinforced infantry chassis weaves.<br><span class='buff-txt'>+ Infantry Power +1.</span>", v2)
+                v3 = player.skills["armorer"] and not player.skills["apex"]
+                render_skill_node(player, "apex", "APEX Matrix", 200, "Advanced Predictive Executive Nexus.<br><span class='buff-txt'>+ Step Up turn yield to $50M.</span>", v3)
                 
-                v2_avail = player.skills["firefighting"] and not player.skills["armorer"]
-                render_skill_node(player, "armorer", "Armorer", 30, "Reinforced combat weaves.<br><span class='buff-txt'>⚡ Buff: Increases Infantry Power by +1.</span>", v2_avail)
-                
-                v3_avail = player.skills["armorer"] and not player.skills["apex"]
-                render_skill_node(player, "apex", "APEX Matrix", 200, "Advanced Executive Matrix systems.<br><span class='buff-txt'>⚡ Buff: Elevates end turn income to $50M.</span>", v3_avail)
-                
-            # --- CONCEALMENT PATH ---
             with t4:
-                st.markdown("<span style='color:#3bb87c'>🍃 CONCEAL</span>", unsafe_allow_html=True)
-                c1_avail = not player.skills["camouflage"]
-                render_skill_node(player, "camouflage", "Camo", 15, "Adaptive blending layers.<br><span class='buff-txt'>⚡ Buff: Lowers baseline threat ratings.</span>", c1_avail)
-                
-                c2_avail = player.skills["camouflage"] and not player.skills["quiet_running"]
-                render_skill_node(player, "quiet_running", "Quiet Run", 30, "Acoustic dampeners on armor platform.<br><span class='buff-txt'>⚡ Buff: Mitigates Exhaustion gains.</span>", c2_avail)
-                
-                c3_avail = player.skills["quiet_running"] and not player.skills["loot"]
-                render_skill_node(player, "loot", "LOOT Net", 75, "Asset observation engine.<br><span class='buff-txt'>⚡ Buff: +25% total mil power & cut Sabotage costs.</span>", c3_avail)
+                st.markdown("<span style='color:#3bb87c; font-size:9px;'>🍃 CONCEAL</span>", unsafe_allow_html=True)
+                c1 = not player.skills["camouflage"]
+                render_skill_node(player, "camouflage", "Camo", 15, "Multi-spectral refractive layers.<br><span class='buff-txt'>+ Lowers defensive threat profile.</span>", c1)
+                c2 = player.skills["camouflage"] and not player.skills["quiet_running"]
+                render_skill_node(player, "quiet_running", "Quiet Run", 30, "Acoustic vehicle deadeners.<br><span class='buff-txt'>+ Cuts operational exhaustion.</span>", c2)
+                c3 = player.skills["quiet_running"] and not player.skills["loot"]
+                render_skill_node(player, "loot", "LOOT Net", 75, "Subversive logistics engine.<br><span class='buff-txt'>+ Military Power +25% & cuts Sabotage costs.</span>", c3)
 
             st.write("---")
 
-        # Action: AEROSPACE COMMAND
-        elif "🚀 Aerospace Command" in action_mode:
+        # 3. AEROSPACE COMMAND
+        elif "🚀" in action_mode:
             if not player.skills["aerospace"]:
-                st.warning("⚠️ ACCESS DENIED: Requires 'Aerospace' research node inside the Skill Tree.")
+                st.warning("⚠️ SECURITY EXCEPTION: Requires 'Aerospace' integration unlocked in the Science Matrix.")
             elif not st.session_state.action_tracking["aerospace"]:
-                space_action = st.radio("Aerospace Directives", [
-                    "Construct Orbital Strike Satellite (Cost: 100)",
-                    "Launch Orbital Strike (Consumes 1 Satellite)"
-                ])
-                if space_action.startswith("Construct"):
-                    if st.button("LAUNCH SATELLITE"):
+                space_action = st.radio("Satellite Grid Control Array:", ["Deploy Heavy Strike Uplink ($100M)", "Execute Orbital Ion Beam Fire Loop"])
+                if "Deploy" in space_action:
+                    if st.button("LAUNCH PLATFORM"):
                         if player.economy >= 100:
                             player.economy -= 100
                             player.units["orbital_satellites"] += 1
                             st.session_state.action_tracking["aerospace"] = True
-                            st.session_state.log.append("🛰️ LEO: Strike Satellite deployed.")
+                            st.session_state.log.append("🛰️ COMMAND: Kinetic strike platform deployed into high orbit.")
                             st.rerun()
                         else:
-                            st.error("SYSTEM ERROR: INSUFFICIENT FUNDS.")
+                            st.error("RESOURCE SHORTAGE.")
                 else:
-                    target_name = st.radio("Target Coordinates", [n.name for n in remaining_enemies])
-                    if st.button("FIRE ORBITAL BEAM"):
+                    target_name = st.radio("Select Uplink Coordinates:", [n.name for n in remaining_enemies])
+                    if st.button("INITIATE ION INVERSION BURST"):
                         if player.units["orbital_satellites"] >= 1:
                             target = next(n for n in nations if n.name == target_name)
                             player.units["orbital_satellites"] -= 1
@@ -355,20 +338,20 @@ else:
                             target.conquered_by = player.name
                             player.economy += target.economy
                             st.session_state.action_tracking["aerospace"] = True
-                            st.session_state.log.append(f"💥 ORBITAL STRIKE: {target.name.upper()} vaporized. Recovered ${target.economy}M.")
+                            st.session_state.log.append(f"💥 ION STRIKE: {target.name.upper()} wiped from arrays. Captured ${target.economy}M.")
                             st.rerun()
                         else:
-                            st.error("SYSTEM ERROR: NO ASSETS IN ORBIT.")
+                            st.error("SATELLITE MATRIX OFFLINE: REQUISITION REQUIRED.")
             else:
-                st.warning("🔒 AEROSPACE DIVISION LOCKED: Launch arrays cooling down.")
+                st.warning("🔒 Uplink arrays running standard safety cooldown sequences.")
 
-        # Action: COVERT OPERATIONS
-        elif "🕵️ Covert Operations" in action_mode:
+        # 4. COVERT OPS
+        elif "🕵️" in action_mode:
             if not st.session_state.action_tracking["covert"]:
                 op_cost = 10 if player.skills["loot"] else 20
-                st.info(f"Infiltrate and sabotage enemy infrastructure. (Cost: ${op_cost}M)")
-                target_name = st.radio("Select Target", [n.name for n in remaining_enemies])
-                if st.button("EXECUTE OPERATION"):
+                st.info(f"Target enemy asset reserves. Operation Cost Matrix: ${op_cost}M")
+                target_name = st.radio("Designate Sabotage Infiltration:", [n.name for n in remaining_enemies])
+                if st.button("EXECUTE STRIKE CONTRACT"):
                     if player.economy >= op_cost:
                         player.economy -= op_cost
                         target = next(n for n in nations if n.name == target_name)
@@ -376,20 +359,19 @@ else:
                         target.economy = max(0, target.economy - 15)
                         apply_casualties(target, severity=0.25)
                         st.session_state.action_tracking["covert"] = True
-                        st.session_state.log.append(f"🕵️ INTEL: Sabotage successful in {target.name.upper()}.")
+                        st.session_state.log.append(f"🕵️ NETWORK INTEL: Disrupted production networks in {target.name.upper()}.")
                         st.rerun()
                     else:
-                        st.error("SYSTEM ERROR: INSUFFICIENT FUNDS.")
+                        st.error("TRANSACTION EXCEPTION: SYSTEM FUNDS EMPTY.")
             else:
-                st.warning("🔒 ESPIONAGE DIVISION LOCKED: Agents safely executing deep undercover.")
+                st.warning("🔒 Espionage operators hiding tracking trails. Locked until turn reset.")
 
-        # Action: INVADE
-        elif "⚔️ Execute Strike" in action_mode:
+        # 5. INVADE
+        elif "⚔️" in action_mode:
             if not st.session_state.action_tracking["strike"]:
-                target_name = st.radio("Designate Invasion Target", [n.name for n in remaining_enemies])
-                if st.button("LAUNCH INVASION"):
+                target_name = st.radio("Select Territorial Target Vector:", [n.name for n in remaining_enemies])
+                if st.button("LAUNCH LAND ASSAULT"):
                     target = next(n for n in nations if n.name == target_name)
-                    
                     atk_roll = player.military_power() + random.uniform(1.0, 8.0)
                     def_roll = target.military_power() + random.uniform(1.0, 8.0)
                     
@@ -398,20 +380,20 @@ else:
                         target.conquered_by = player.name
                         player.economy += target.economy
                         apply_casualties(player, severity=0.15) 
-                        st.session_state.log.append(f"VICTORY: {target.name.upper()} captured. Gained ${target.economy}M.")
+                        st.session_state.log.append(f"VICTORY: Overran frontlines in {target.name.upper()}. Secured ${target.economy}M.")
                     else:
                         player.war_exhaustion += 4
                         apply_casualties(player, severity=0.40) 
-                        st.session_state.log.append(f"DEFEAT: Invasion of {target.name.upper()} repulsed.")
+                        st.session_state.log.append(f"TACTICAL BREAK: Assasult vector on {target.name.upper()} collapsed.")
                     
                     st.session_state.action_tracking["strike"] = True
                     st.rerun()
             else:
-                st.warning("🔒 COMMAND CONTROLLER LOCKED: Tactical assault assets structuralizing lines.")
+                st.warning("🔒 Tactical lines organizing replenishment procedures.")
 
-        # Action: END TURN
-        elif action_mode == "⏭️ End Turn Cycle":
-            if st.button("CONFIRM END CYCLE"):
+        # 6. END TURN CYCLE
+        elif "⏭️" in action_mode:
+            if st.button("COMMIT AND FLUSH TURNS"):
                 econ_gain = 50 if player.skills["apex"] else 30
                 player.economy += econ_gain
                 if player.war_exhaustion > 0: player.war_exhaustion -= 1 
@@ -426,12 +408,22 @@ else:
                 for key in st.session_state.action_tracking:
                     st.session_state.action_tracking[key] = False
                     
-                st.session_state.log.append(f"CYCLE COMPLETE. Turn {st.session_state.turn} begins.")
+                st.session_state.log.append(f"CYCLE COMPLETE: Beginning Tactical Cycle {st.session_state.turn}.")
                 st.rerun()
 
-    # RENDER INTERACTIVE WORLD MAP VIA PLOTLY
-    st.plotly_chart(render_interactive_map(nations, player), use_container_width=True)
+    # RENDER PLOTLY CHOROPLETH GRAPH INTERACTIVE MAP
+    st.plotly_chart(render_interactive_map(nations, player), use_container_width=True, config={'displayModeBar': False})
     
-    st.markdown("### SYSTEM LOG")
-    log_content = "<br>".join([f"> {msg}" for msg in reversed(st.session_state.log[-5:])])
+    # Custom Mobile Map Legend
+    st.markdown("""
+    <div class='map-legend'>
+        <div class='legend-item'><div class='legend-color' style='background:#597dce;'></div>Player</div>
+        <div class='legend-item'><div class='legend-color' style='background:#d95763;'></div>Rival</div>
+        <div class='legend-item'><div class='legend-color' style='background:#3e734e;'></div>Conquered</div>
+        <div class='legend-item'><div class='legend-color' style='background:#2d232e;'></div>Defeated/Out</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("### STRATEGIC EVENT FEED")
+    log_content = "<br>".join([f"> {msg}" for msg in reversed(st.session_state.log[-4:])])
     st.markdown(f'<div class="terminal-box">{log_content}</div>', unsafe_allow_html=True)
