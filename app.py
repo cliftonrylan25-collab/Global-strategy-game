@@ -114,7 +114,13 @@ div[data-testid="stMetricValue"] { color: #f4f4f4 !important; font-size: 14px !i
 div.row-widget.stRadio > div { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 15px; border-radius: 0px; }
 .stRadio label { padding-bottom: 12px; line-height: 1.5; }
 .terminal-box { background-color: #000000; border: 2px solid #597dce; padding: 15px; color: #3e734e; font-family: monospace !important; font-size: 12px; height: 180px; overflow-y: auto; }
-.skill-card { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 8px; margin-bottom: 8px; text-align: center; font-size: 10px; }
+
+/* Skill Tree Styling */
+.skill-card { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 10px; margin-bottom: 10px; text-align: center; font-size: 10px; line-height: 1.4; }
+.info-drawer { font-size: 8px; margin-top: 6px; text-align: left; background: #2d232e; padding: 5px; border-left: 2px solid #597dce; }
+.info-drawer summary { cursor: pointer; color: #597dce; font-weight: bold; list-style: none; outline: none; text-align: center; }
+.info-drawer summary::-webkit-details-marker { display: none; }
+.buff-txt { color: #3bb87c; margin-top: 4px; display: block; }
 </style>
 """
 st.markdown(pixel_css, unsafe_allow_html=True)
@@ -197,57 +203,76 @@ else:
             else:
                 st.caption("🔒 LOGISTICS LOCKED: Awaiting next turn cycle.")
 
-        # Action: SKILL TREE (MOBILE RESPONSIVE REWRITE)
+        # Action: SKILL TREE (MOBILE RESPONSIVE WITH DRAWER INFO)
         elif action_mode == "🌳 Skill Tree (R&D)":
             st.markdown("### 🧬 EMPIRE TECH TREE STATUS")
             
-            # Render a 4-column layout layout that matches your layout image cleanly
             t1, t2, t3, t4 = st.columns(4)
             
             with t1:
                 st.markdown("<span style='color:#e4c34a'>⚡ MOBILITY</span>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['repairs'] else '🔒'} Repairs<br>($15M)</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['off_road'] else '🔒'} Off-Road<br>($30M)</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['sohc_4_valve'] else '🔒'} SOHC 4V<br>($60M)</div>", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['repairs'] else '🔒'} Repairs ($15M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Mechanized field repair crews assigned to lines.<br><span class='buff-txt'>⚡ Buff: Speeds up armor deployment.</span></details></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['off_road'] else '🔒'} Off-Road ($30M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>All-terrain combat chassis optimizations.<br><span class='buff-txt'>⚡ Buff: Mitigates geographic deployment fatigue.</span></details></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['sohc_4_valve'] else '🔒'} SOHC 4V ($60M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>High-performance engine head layouts.<br><span class='buff-txt'>⚡ Buff: Increases Tank Power by +2.</span></details></div>""", unsafe_allow_html=True)
                 
             with t2:
                 st.markdown("<span style='color:#9c66d1'>👁️ SPOTTING</span>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['situational_awareness'] else '🔒'} Sit Aware<br>($15M)</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['recon'] else '🔒'} Recon<br>($30M)</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['aerospace'] else '🔒'} Aerospace<br>($100M)</div>", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['situational_awareness'] else '🔒'} Sit Aware ($15M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Real-time battlefield tracking architecture.<br><span class='buff-txt'>⚡ Buff: Protects core logistics networks.</span></details></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['recon'] else '🔒'} Recon ($30M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Forward advance surveillance and route-mapping.<br><span class='buff-txt'>⚡ Buff: Lowers invasion fail rates.</span></details></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['aerospace'] else '🔒'} Aerospace ($100M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Unlocks heavy low-Earth orbit satellite commands.<br><span class='buff-txt'>⚡ Buff: Grants access to Orbital Strikes.</span></details></div>""", unsafe_allow_html=True)
                 
             with t3:
                 st.markdown("<span style='color:#d97e41'>🛡️ SURVIVE</span>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['firefighting'] else '🔒'} Firefight<br>($15M)</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['armorer'] else '🔒'} Armorer<br>($30M)</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['apex'] else '🔒'} APEX<br>($200M)</div>", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['firefighting'] else '🔒'} Firefight ($15M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Automated fire containment panels.<br><span class='buff-txt'>⚡ Buff: Restricts standard combat casualty losses.</span></details></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['armorer'] else '🔒'} Armorer ($30M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Reinforced uniform weave and armor scales.<br><span class='buff-txt'>⚡ Buff: Increases Infantry Power by +1.</span></details></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['apex'] else '🔒'} APEX ($200M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Advanced Predictive Executive Matrix nexus.<br><span class='buff-txt'>⚡ Buff: Elevates end turn income to $50M.</span></details></div>""", unsafe_allow_html=True)
                 
             with t4:
                 st.markdown("<span style='color:#3bb87c'>🍃 CONCEAL</span>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['camouflage'] else '🔒'} Camo<br>($15M)</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['quiet_running'] else '🔒'} Quiet Run<br>($30M)</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='skill-card'>{'✅' if player.skills['loot'] else '🔒'} LOOT Net<br>($75M)</div>", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['camouflage'] else '🔒'} Camo ($15M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Adaptive multi-spectrum blending layers.<br><span class='buff-txt'>⚡ Buff: Lowers standard baseline threat ratings.</span></details></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['quiet_running'] else '🔒'} Quiet Run ($30M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Acoustic dampeners on mobile armor platforms.<br><span class='buff-txt'>⚡ Buff: Mitigates post-combat Exhaustion gains.</span></details></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['loot'] else '🔒'} LOOT Net ($75M)
+                    <details class='info-drawer'><summary>ℹ️ Info</summary>Subversive logistics asset interception grids.<br><span class='buff-txt'>⚡ Buff: +25% total military power & cuts Sabotage costs.</span></details></div>""", unsafe_allow_html=True)
 
             st.write("---")
 
             if not st.session_state.action_taken:
                 opts = []
-                # Mobility Branch unlocks linearly
                 if not player.skills["repairs"]: opts.append(("Repairs (Mobility T1) - $15M", 15, "repairs"))
                 elif not player.skills["off_road"]: opts.append(("Off-Road Driving (Mobility T2) - $30M", 30, "off_road"))
                 elif not player.skills["sohc_4_valve"]: opts.append(("SOHC 4-Valve Config (Mobility T3) - $60M", 60, "sohc_4_valve"))
                 
-                # Spotting Branch
                 if not player.skills["situational_awareness"]: opts.append(("Situational Awareness (Spotting T1) - $15M", 15, "situational_awareness"))
                 elif not player.skills["recon"]: opts.append(("Recon (Spotting T2) - $30M", 30, "recon"))
                 elif not player.skills["aerospace"]: opts.append(("Aerospace Command (Spotting T3) - $100M", 100, "aerospace"))
 
-                # Survivability Branch
                 if not player.skills["firefighting"]: opts.append(("Firefighting (Survivability T1) - $15M", 15, "firefighting"))
                 elif not player.skills["armorer"]: opts.append(("Armorer (Survivability T2) - $30M", 30, "armorer"))
                 elif not player.skills["apex"]: opts.append(("APEX Matrix (Survivability T3) - $200M", 200, "apex"))
 
-                # Concealment Branch
                 if not player.skills["camouflage"]: opts.append(("Camouflage (Concealment T1) - $15M", 15, "camouflage"))
                 elif not player.skills["quiet_running"]: opts.append(("Quiet Running (Concealment T2) - $30M", 30, "quiet_running"))
                 elif not player.skills["loot"]: opts.append(("LOOT Network (Concealment T3) - $75M", 75, "loot"))
@@ -374,3 +399,4 @@ else:
     st.markdown("### SYSTEM LOG")
     log_content = "<br>".join([f"> {msg}" for msg in reversed(st.session_state.log[-5:])])
     st.markdown(f'<div class="terminal-box">{log_content}</div>', unsafe_allow_html=True)
+
