@@ -103,22 +103,19 @@ def render_skill_node(player, skill_id, display_name, cost, info_html, is_availa
     
     with col_node:
         if player.skills[skill_id]:
-            # Already acquired
             st.markdown("<h3 style='text-align:center; margin:0; padding-top:12px; color:#3bb87c;'>✅</h3>", unsafe_allow_html=True)
-        elif is_available and not st.session_state.action_taken:
-            # Selectable circle buy node
+        elif is_available and not st.session_state.action_tracking["research"]:
             st.write("")
             if st.button("🟢", key=f"node_{skill_id}", help=f"Tap to research {display_name}"):
                 if player.economy >= cost:
                     player.economy -= cost
                     player.skills[skill_id] = True
-                    st.session_state.action_taken = True
+                    st.session_state.action_tracking["research"] = True
                     st.session_state.log.append(f"🧬 SYSTEM UPGRADE: {display_name.upper()} online.")
                     st.rerun()
                 else:
                     st.error("INSUFFICIENT ECONOMY")
         else:
-            # Locked node
             st.markdown("<h3 style='text-align:center; margin:0; padding-top:12px; color:#4a3d4c;'>🔒</h3>", unsafe_allow_html=True)
             
     with col_card:
@@ -172,7 +169,14 @@ if "game_started" not in st.session_state:
     st.session_state.turn = 1 
     st.session_state.log = ["SYSTEM BOOT SEQUENCE INITIATED...", "AWAITING COMMANDER DIRECTIVE."]
     st.session_state.nations = create_nations()
-    st.session_state.action_taken = False 
+    # Tracking matrix for independent per-section actions
+    st.session_state.action_tracking = {
+        "deploy": False,
+        "research": False,
+        "aerospace": False,
+        "covert": False,
+        "strike": False
+    }
 
 nations = st.session_state.nations
 
@@ -203,23 +207,29 @@ else:
         st.markdown(f"**GARRISON:** 🎖️ Inf: {player.units['infantry']} | 🚜 Tanks: {player.units['tanks']} | ✈️ Jets: {player.units['jets']} | 🛰️ Sats: {player.units['orbital_satellites']}")
         st.write("---")
         
-        # Command Menu
+        # Command Menu Status Badges
+        d_status = "🔒 LOCKED" if st.session_state.action_tracking['deploy'] else "🟢 READY"
+        r_status = "🔒 LOCKED" if st.session_state.action_tracking['research'] else "🟢 READY"
+        a_status = "🔒 LOCKED" if st.session_state.action_tracking['aerospace'] else "🟢 READY"
+        c_status = "🔒 LOCKED" if st.session_state.action_tracking['covert'] else "🟢 READY"
+        s_status = "🔒 LOCKED" if st.session_state.action_tracking['strike'] else "🟢 READY"
+
         action_mode = st.radio(
-            "COMMAND TERMINAL:",
+            "COMMAND TERMINAL COMPONENTS:",
             [
-                "🛠️ Deploy Forces", 
-                "🌳 Skill Tree (R&D)",
-                "🚀 Aerospace Command", 
-                "🕵️ Covert Operations",
-                "⚔️ Execute Strike", 
+                f"🛠️ Deploy Forces [{d_status}]", 
+                "🌳 Skill Tree (R&D) [" + r_status + "]",
+                f"🚀 Aerospace Command [{a_status}]", 
+                f"🕵️ Covert Operations [{c_status}]",
+                f"⚔️ Execute Strike [{s_status}]", 
                 "⏭️ End Turn Cycle"
             ]
         )
         st.write("---")
         
         # Action: DEPLOY FORCES
-        if action_mode == "🛠️ Deploy Forces":
-            if not st.session_state.action_taken:
+        if "🛠️ Deploy Forces" in action_mode:
+            if not st.session_state.action_tracking["deploy"]:
                 unit = st.radio("Requisition Assets", [
                     "Infantry Battalion (Cost: 10)", 
                     "Armored Tanks (Cost: 25)",
@@ -233,26 +243,25 @@ else:
                     if player.economy >= cost:
                         player.economy -= cost
                         player.units[key] += 1
-                        st.session_state.action_taken = True
+                        st.session_state.action_tracking["deploy"] = True
                         st.session_state.log.append(f"PRODUCTION: {key.upper()} deployed.")
                         st.rerun()
                     else:
                         st.error("SYSTEM ERROR: INSUFFICIENT FUNDS.")
             else:
-                st.caption("🔒 LOGISTICS LOCKED: Awaiting next turn cycle.")
+                st.warning("🔒 LOGISTICS DIVISION LOCKED: This branch has already finalized production plans this cycle.")
 
-        # Action: SKILL TREE (WITH CIRCLE SELECTOR DIRECT BUTTONS)
-        elif action_mode == "🌳 Skill Tree (R&D)":
+        # Action: SKILL TREE 
+        elif "🌳 Skill Tree" in action_mode:
             st.markdown("### 🧬 EMPIRE TECH TREE")
-            if st.session_state.action_taken:
-                st.caption("🔒 LABORATORY LOCKED: Awaiting next turn cycle.")
+            if st.session_state.action_tracking["research"]:
+                st.warning("🔒 LABORATORY DIVISION LOCKED: Scientific engineering capabilities fully extended for this cycle.")
             
             t1, t2, t3, t4 = st.columns(4)
             
             # --- MOBILITY PATH ---
             with t1:
                 st.markdown("<span style='color:#e4c34a'>⚡ MOBILITY</span>", unsafe_allow_html=True)
-                
                 m1_avail = not player.skills["repairs"]
                 render_skill_node(player, "repairs", "Repairs", 15, 
                                   "Mechanized field repair crews assigned to lines.<br><span class='buff-txt'>⚡ Buff: Speeds up armor deployment.</span>", m1_avail)
@@ -268,7 +277,6 @@ else:
             # --- SPOTTING PATH ---
             with t2:
                 st.markdown("<span style='color:#9c66d1'>👁️ SPOTTING</span>", unsafe_allow_html=True)
-                
                 s1_avail = not player.skills["situational_awareness"]
                 render_skill_node(player, "situational_awareness", "Sit Aware", 15, 
                                   "Real-time battlefield tracking architecture.<br><span class='buff-txt'>⚡ Buff: Protects core logistics networks.</span>", s1_avail)
@@ -284,7 +292,6 @@ else:
             # --- SURVIVABILITY PATH ---
             with t3:
                 st.markdown("<span style='color:#d97e41'>🛡️ SURVIVE</span>", unsafe_allow_html=True)
-                
                 v1_avail = not player.skills["firefighting"]
                 render_skill_node(player, "firefighting", "Firefight", 15, 
                                   "Automated fire containment panels.<br><span class='buff-txt'>⚡ Buff: Restricts standard combat casualty losses.</span>", v1_avail)
@@ -300,7 +307,6 @@ else:
             # --- CONCEALMENT PATH ---
             with t4:
                 st.markdown("<span style='color:#3bb87c'>🍃 CONCEAL</span>", unsafe_allow_html=True)
-                
                 c1_avail = not player.skills["camouflage"]
                 render_skill_node(player, "camouflage", "Camo", 15, 
                                   "Adaptive multi-spectrum blending layers.<br><span class='buff-txt'>⚡ Buff: Lowers standard baseline threat ratings.</span>", c1_avail)
@@ -316,10 +322,10 @@ else:
             st.write("---")
 
         # Action: AEROSPACE COMMAND
-        elif action_mode == "🚀 Aerospace Command":
+        elif "🚀 Aerospace Command" in action_mode:
             if not player.skills["aerospace"]:
-                st.warning("⚠️ ACCESS DENIED: Requires 'Aerospace' research node.")
-            elif not st.session_state.action_taken:
+                st.warning("⚠️ ACCESS DENIED: Requires 'Aerospace' research node inside the Skill Tree.")
+            elif not st.session_state.action_tracking["aerospace"]:
                 space_action = st.radio("Aerospace Directives", [
                     "Construct Orbital Strike Satellite (Cost: 100)",
                     "Launch Orbital Strike (Consumes 1 Satellite)"
@@ -329,7 +335,7 @@ else:
                         if player.economy >= 100:
                             player.economy -= 100
                             player.units["orbital_satellites"] += 1
-                            st.session_state.action_taken = True
+                            st.session_state.action_tracking["aerospace"] = True
                             st.session_state.log.append("🛰️ LEO: Strike Satellite deployed.")
                             st.rerun()
                         else:
@@ -343,17 +349,17 @@ else:
                             target.is_eliminated = True
                             target.conquered_by = player.name
                             player.economy += target.economy
-                            st.session_state.action_taken = True
+                            st.session_state.action_tracking["aerospace"] = True
                             st.session_state.log.append(f"💥 ORBITAL STRIKE: {target.name.upper()} vaporized. Recovered ${target.economy}M.")
                             st.rerun()
                         else:
                             st.error("SYSTEM ERROR: NO ASSETS IN ORBIT.")
             else:
-                st.caption("🔒 COMMAND LOCKED: Awaiting next turn cycle.")
+                st.warning("🔒 AEROSPACE DIVISON LOCKED: Launch vectors cooling down until next cycle.")
 
         # Action: COVERT OPERATIONS
-        elif action_mode == "🕵️ Covert Operations":
-            if not st.session_state.action_taken:
+        elif "🕵️ Covert Operations" in action_mode:
+            if not st.session_state.action_tracking["covert"]:
                 op_cost = 10 if player.skills["loot"] else 20
                 st.info(f"Infiltrate and sabotage enemy infrastructure. (Cost: ${op_cost}M)")
                 target_name = st.radio("Select Target", [n.name for n in remaining_enemies])
@@ -364,17 +370,17 @@ else:
                         target.war_exhaustion += 4
                         target.economy = max(0, target.economy - 15)
                         apply_casualties(target, severity=0.25)
-                        st.session_state.action_taken = True
+                        st.session_state.action_tracking["covert"] = True
                         st.session_state.log.append(f"🕵️ INTEL: Sabotage successful in {target.name.upper()}.")
                         st.rerun()
                     else:
                         st.error("SYSTEM ERROR: INSUFFICIENT FUNDS.")
             else:
-                st.caption("🔒 INTEL LOCKED: Awaiting next turn cycle.")
+                st.warning("🔒 ESPIONAGE DIVISION LOCKED: Agents underground executing active networks.")
 
         # Action: INVADE
-        elif action_mode == "⚔️ Execute Strike":
-            if not st.session_state.action_taken:
+        elif "⚔️ Execute Strike" in action_mode:
+            if not st.session_state.action_tracking["strike"]:
                 target_name = st.radio("Designate Invasion Target", [n.name for n in remaining_enemies])
                 if st.button("LAUNCH INVASION"):
                     target = next(n for n in nations if n.name == target_name)
@@ -393,10 +399,10 @@ else:
                         apply_casualties(player, severity=0.40) 
                         st.session_state.log.append(f"DEFEAT: Invasion of {target.name.upper()} repulsSED.")
                     
-                    st.session_state.action_taken = True
+                    st.session_state.action_tracking["strike"] = True
                     st.rerun()
             else:
-                st.caption("🔒 MILITARY LOCKED: Awaiting next turn cycle.")
+                st.warning("🔒 COMMAND CONTROLLER LOCKED: Main line assault forces reorganizing lines.")
 
         # Action: END TURN
         elif action_mode == "⏭️ End Turn Cycle":
@@ -412,7 +418,11 @@ else:
                         ai.units["tanks"] += 1
                         
                 st.session_state.turn += 1
-                st.session_state.action_taken = False 
+                
+                # Full system unlock for the new turn cycle
+                for key in st.session_state.action_tracking:
+                    st.session_state.action_tracking[key] = False
+                    
                 st.session_state.log.append(f"CYCLE COMPLETE. Turn {st.session_state.turn} begins.")
                 st.rerun()
 
