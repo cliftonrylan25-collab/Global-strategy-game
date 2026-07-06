@@ -96,6 +96,44 @@ def render_map(nations, player):
     return fig
 
 # =========================
+# HELPER FOR SELECTION NODE
+# =========================
+def render_skill_node(player, skill_id, display_name, cost, info_html, is_available):
+    col_node, col_card = st.columns([1, 4])
+    
+    with col_node:
+        if player.skills[skill_id]:
+            # Already acquired
+            st.markdown("<h3 style='text-align:center; margin:0; padding-top:12px; color:#3bb87c;'>✅</h3>", unsafe_allow_html=True)
+        elif is_available and not st.session_state.action_taken:
+            # Selectable circle buy node
+            st.write("")
+            if st.button("🟢", key=f"node_{skill_id}", help=f"Tap to research {display_name}"):
+                if player.economy >= cost:
+                    player.economy -= cost
+                    player.skills[skill_id] = True
+                    st.session_state.action_taken = True
+                    st.session_state.log.append(f"🧬 SYSTEM UPGRADE: {display_name.upper()} online.")
+                    st.rerun()
+                else:
+                    st.error("INSUFFICIENT ECONOMY")
+        else:
+            # Locked node
+            st.markdown("<h3 style='text-align:center; margin:0; padding-top:12px; color:#4a3d4c;'>🔒</h3>", unsafe_allow_html=True)
+            
+    with col_card:
+        card_border = "#597dce" if player.skills[skill_id] else ("#3bb87c" if is_available else "#4a3d4c")
+        st.markdown(f"""
+            <div class='skill-card' style='border-color: {card_border}'>
+                <b>{display_name}</b><br>Cost: ${cost}M
+                <details class='info-drawer'>
+                    <summary>ℹ️ Info</summary>
+                    {info_html}
+                </details>
+            </div>
+        """, unsafe_allow_html=True)
+
+# =========================
 # STREAMLIT APP & UI
 # =========================
 st.set_page_config(page_title="Global Conquest", layout="wide") 
@@ -116,7 +154,7 @@ div.row-widget.stRadio > div { background-color: #1a1c2c; border: 2px solid #4a3
 .terminal-box { background-color: #000000; border: 2px solid #597dce; padding: 15px; color: #3e734e; font-family: monospace !important; font-size: 12px; height: 180px; overflow-y: auto; }
 
 /* Skill Tree Styling */
-.skill-card { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 10px; margin-bottom: 10px; text-align: center; font-size: 10px; line-height: 1.4; }
+.skill-card { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 10px; margin-bottom: 12px; text-align: center; font-size: 9px; line-height: 1.4; }
 .info-drawer { font-size: 8px; margin-top: 6px; text-align: left; background: #2d232e; padding: 5px; border-left: 2px solid #597dce; }
 .info-drawer summary { cursor: pointer; color: #597dce; font-weight: bold; list-style: none; outline: none; text-align: center; }
 .info-drawer summary::-webkit-details-marker { display: none; }
@@ -203,101 +241,84 @@ else:
             else:
                 st.caption("🔒 LOGISTICS LOCKED: Awaiting next turn cycle.")
 
-        # Action: SKILL TREE (MOBILE RESPONSIVE WITH DRAWER INFO)
+        # Action: SKILL TREE (WITH CIRCLE SELECTOR DIRECT BUTTONS)
         elif action_mode == "🌳 Skill Tree (R&D)":
-            st.markdown("### 🧬 EMPIRE TECH TREE STATUS")
+            st.markdown("### 🧬 EMPIRE TECH TREE")
+            if st.session_state.action_taken:
+                st.caption("🔒 LABORATORY LOCKED: Awaiting next turn cycle.")
             
             t1, t2, t3, t4 = st.columns(4)
             
+            # --- MOBILITY PATH ---
             with t1:
                 st.markdown("<span style='color:#e4c34a'>⚡ MOBILITY</span>", unsafe_allow_html=True)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['repairs'] else '🔒'} Repairs ($15M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Mechanized field repair crews assigned to lines.<br><span class='buff-txt'>⚡ Buff: Speeds up armor deployment.</span></details></div>""", unsafe_allow_html=True)
+                m1_avail = not player.skills["repairs"]
+                render_skill_node(player, "repairs", "Repairs", 15, 
+                                  "Mechanized field repair crews assigned to lines.<br><span class='buff-txt'>⚡ Buff: Speeds up armor deployment.</span>", m1_avail)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['off_road'] else '🔒'} Off-Road ($30M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>All-terrain combat chassis optimizations.<br><span class='buff-txt'>⚡ Buff: Mitigates geographic deployment fatigue.</span></details></div>""", unsafe_allow_html=True)
+                m2_avail = player.skills["repairs"] and not player.skills["off_road"]
+                render_skill_node(player, "off_road", "Off-Road", 30, 
+                                  "All-terrain combat chassis optimizations.<br><span class='buff-txt'>⚡ Buff: Mitigates geographic deployment fatigue.</span>", m2_avail)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['sohc_4_valve'] else '🔒'} SOHC 4V ($60M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>High-performance engine head layouts.<br><span class='buff-txt'>⚡ Buff: Increases Tank Power by +2.</span></details></div>""", unsafe_allow_html=True)
+                m3_avail = player.skills["off_road"] and not player.skills["sohc_4_valve"]
+                render_skill_node(player, "sohc_4_valve", "SOHC 4V", 60, 
+                                  "High-performance single overhead camshaft engine head layouts.<br><span class='buff-txt'>⚡ Buff: Increases Tank Power by +2.</span>", m3_avail)
                 
+            # --- SPOTTING PATH ---
             with t2:
                 st.markdown("<span style='color:#9c66d1'>👁️ SPOTTING</span>", unsafe_allow_html=True)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['situational_awareness'] else '🔒'} Sit Aware ($15M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Real-time battlefield tracking architecture.<br><span class='buff-txt'>⚡ Buff: Protects core logistics networks.</span></details></div>""", unsafe_allow_html=True)
+                s1_avail = not player.skills["situational_awareness"]
+                render_skill_node(player, "situational_awareness", "Sit Aware", 15, 
+                                  "Real-time battlefield tracking architecture.<br><span class='buff-txt'>⚡ Buff: Protects core logistics networks.</span>", s1_avail)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['recon'] else '🔒'} Recon ($30M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Forward advance surveillance and route-mapping.<br><span class='buff-txt'>⚡ Buff: Lowers invasion fail rates.</span></details></div>""", unsafe_allow_html=True)
+                s2_avail = player.skills["situational_awareness"] and not player.skills["recon"]
+                render_skill_node(player, "recon", "Recon", 30, 
+                                  "Forward advance surveillance and route-mapping.<br><span class='buff-txt'>⚡ Buff: Lowers invasion fail rates.</span>", s2_avail)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['aerospace'] else '🔒'} Aerospace ($100M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Unlocks heavy low-Earth orbit satellite commands.<br><span class='buff-txt'>⚡ Buff: Grants access to Orbital Strikes.</span></details></div>""", unsafe_allow_html=True)
+                s3_avail = player.skills["recon"] and not player.skills["aerospace"]
+                render_skill_node(player, "aerospace", "Aerospace", 100, 
+                                  "Unlocks heavy low-Earth orbit satellite command matrix.<br><span class='buff-txt'>⚡ Buff: Grants access to Orbital Strikes.</span>", s3_avail)
                 
+            # --- SURVIVABILITY PATH ---
             with t3:
                 st.markdown("<span style='color:#d97e41'>🛡️ SURVIVE</span>", unsafe_allow_html=True)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['firefighting'] else '🔒'} Firefight ($15M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Automated fire containment panels.<br><span class='buff-txt'>⚡ Buff: Restricts standard combat casualty losses.</span></details></div>""", unsafe_allow_html=True)
+                v1_avail = not player.skills["firefighting"]
+                render_skill_node(player, "firefighting", "Firefight", 15, 
+                                  "Automated fire containment panels.<br><span class='buff-txt'>⚡ Buff: Restricts standard combat casualty losses.</span>", v1_avail)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['armorer'] else '🔒'} Armorer ($30M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Reinforced uniform weave and armor scales.<br><span class='buff-txt'>⚡ Buff: Increases Infantry Power by +1.</span></details></div>""", unsafe_allow_html=True)
+                v2_avail = player.skills["firefighting"] and not player.skills["armorer"]
+                render_skill_node(player, "armorer", "Armorer", 30, 
+                                  "Reinforced uniform weave and armor scales.<br><span class='buff-txt'>⚡ Buff: Increases Infantry Power by +1.</span>", v2_avail)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['apex'] else '🔒'} APEX ($200M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Advanced Predictive Executive Matrix nexus.<br><span class='buff-txt'>⚡ Buff: Elevates end turn income to $50M.</span></details></div>""", unsafe_allow_html=True)
+                v3_avail = player.skills["armorer"] and not player.skills["apex"]
+                render_skill_node(player, "apex", "APEX Matrix", 200, 
+                                  "Advanced Predictive Executive Matrix systems nexus.<br><span class='buff-txt'>⚡ Buff: Elevates end turn income to $50M.</span>", v3_avail)
                 
+            # --- CONCEALMENT PATH ---
             with t4:
                 st.markdown("<span style='color:#3bb87c'>🍃 CONCEAL</span>", unsafe_allow_html=True)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['camouflage'] else '🔒'} Camo ($15M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Adaptive multi-spectrum blending layers.<br><span class='buff-txt'>⚡ Buff: Lowers standard baseline threat ratings.</span></details></div>""", unsafe_allow_html=True)
+                c1_avail = not player.skills["camouflage"]
+                render_skill_node(player, "camouflage", "Camo", 15, 
+                                  "Adaptive multi-spectrum blending layers.<br><span class='buff-txt'>⚡ Buff: Lowers standard baseline threat ratings.</span>", c1_avail)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['quiet_running'] else '🔒'} Quiet Run ($30M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Acoustic dampeners on mobile armor platforms.<br><span class='buff-txt'>⚡ Buff: Mitigates post-combat Exhaustion gains.</span></details></div>""", unsafe_allow_html=True)
+                c2_avail = player.skills["camouflage"] and not player.skills["quiet_running"]
+                render_skill_node(player, "quiet_running", "Quiet Run", 30, 
+                                  "Acoustic dampeners on mobile armor platforms.<br><span class='buff-txt'>⚡ Buff: Mitigates post-combat Exhaustion gains.</span>", c2_avail)
                 
-                st.markdown(f"""<div class='skill-card'>{'✅' if player.skills['loot'] else '🔒'} LOOT Net ($75M)
-                    <details class='info-drawer'><summary>ℹ️ Info</summary>Subversive logistics asset interception grids.<br><span class='buff-txt'>⚡ Buff: +25% total military power & cuts Sabotage costs.</span></details></div>""", unsafe_allow_html=True)
+                c3_avail = player.skills["quiet_running"] and not player.skills["loot"]
+                render_skill_node(player, "loot", "LOOT Net", 75, 
+                                  "Subversive logistics asset observation and interception engine.<br><span class='buff-txt'>⚡ Buff: +25% total military power & cuts Sabotage costs.</span>", c3_avail)
 
             st.write("---")
-
-            if not st.session_state.action_taken:
-                opts = []
-                if not player.skills["repairs"]: opts.append(("Repairs (Mobility T1) - $15M", 15, "repairs"))
-                elif not player.skills["off_road"]: opts.append(("Off-Road Driving (Mobility T2) - $30M", 30, "off_road"))
-                elif not player.skills["sohc_4_valve"]: opts.append(("SOHC 4-Valve Config (Mobility T3) - $60M", 60, "sohc_4_valve"))
-                
-                if not player.skills["situational_awareness"]: opts.append(("Situational Awareness (Spotting T1) - $15M", 15, "situational_awareness"))
-                elif not player.skills["recon"]: opts.append(("Recon (Spotting T2) - $30M", 30, "recon"))
-                elif not player.skills["aerospace"]: opts.append(("Aerospace Command (Spotting T3) - $100M", 100, "aerospace"))
-
-                if not player.skills["firefighting"]: opts.append(("Firefighting (Survivability T1) - $15M", 15, "firefighting"))
-                elif not player.skills["armorer"]: opts.append(("Armorer (Survivability T2) - $30M", 30, "armorer"))
-                elif not player.skills["apex"]: opts.append(("APEX Matrix (Survivability T3) - $200M", 200, "apex"))
-
-                if not player.skills["camouflage"]: opts.append(("Camouflage (Concealment T1) - $15M", 15, "camouflage"))
-                elif not player.skills["quiet_running"]: opts.append(("Quiet Running (Concealment T2) - $30M", 30, "quiet_running"))
-                elif not player.skills["loot"]: opts.append(("LOOT Network (Concealment T3) - $75M", 75, "loot"))
-
-                if opts:
-                    tech_choice = st.selectbox("Direct Research Funding:", [o[0] for o in opts])
-                    if st.button("RESEARCH PROJECT"):
-                        selected = next(o for o in opts if o[0] == tech_choice)
-                        if player.economy >= selected[1]:
-                            player.economy -= selected[1]
-                            player.skills[selected[2]] = True
-                            st.session_state.action_taken = True
-                            st.session_state.log.append(f"🧬 SYSTEM UPGRADE: {selected[2].replace('_', ' ').upper()} online.")
-                            st.rerun()
-                        else:
-                            st.error("SYSTEM ERROR: INSUFFICIENT FUNDS.")
-                else:
-                    st.success("All tech trees fully maximized.")
-            else:
-                st.caption("🔒 LABORATORY LOCKED: Awaiting next turn cycle.")
 
         # Action: AEROSPACE COMMAND
         elif action_mode == "🚀 Aerospace Command":
             if not player.skills["aerospace"]:
-                st.warning("⚠️ ACCESS DENIED: Requires 'Aerospace Command' research node.")
+                st.warning("⚠️ ACCESS DENIED: Requires 'Aerospace' research node.")
             elif not st.session_state.action_taken:
                 space_action = st.radio("Aerospace Directives", [
                     "Construct Orbital Strike Satellite (Cost: 100)",
@@ -399,4 +420,3 @@ else:
     st.markdown("### SYSTEM LOG")
     log_content = "<br>".join([f"> {msg}" for msg in reversed(st.session_state.log[-5:])])
     st.markdown(f'<div class="terminal-box">{log_content}</div>', unsafe_allow_html=True)
-
