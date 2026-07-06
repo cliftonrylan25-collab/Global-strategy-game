@@ -121,7 +121,6 @@ div[data-testid="stMetricValue"] {
     background-color: #ac3232;
 }
 
-/* Upgraded Radio Buttons for Mobile Tapping */
 div.row-widget.stRadio > div {
     background-color: #1a1c2c;
     border: 2px solid #4a3d4c;
@@ -166,7 +165,6 @@ nations = st.session_state.nations
 # =========================
 if not st.session_state.game_started: 
     st.markdown("### INITIALIZE CAMPAIGN")
-    # Swapped to radio button
     choice = st.radio("Select Superpower Faction:", [n.name for n in nations]) 
     if st.button("COMMENCE DOMINATION"): 
         st.session_state.player = next(n for n in nations if n.name == choice) 
@@ -199,9 +197,6 @@ else:
         
         st.write("---")
         
-        if st.session_state.action_taken:
-            st.warning("⚠️ AP EXPENDED. END TURN TO REFRESH COMMANDS.")
-        
         action_mode = st.radio(
             "COMMAND TERMINAL:",
             ["🛠️ Deploy Forces", "⚔️ Execute Strike", "⏭️ End Turn Cycle"]
@@ -212,7 +207,6 @@ else:
         # Action: BUILD
         if action_mode == "🛠️ Deploy Forces":
             if not st.session_state.action_taken:
-                # Swapped to radio button
                 unit = st.radio("Requisition Assets", [
                     "Infantry Battalion (Cost: 10 | Pow: 1)", 
                     "Armored Tanks (Cost: 25 | Pow: 3)",
@@ -232,13 +226,12 @@ else:
                     else:
                         st.error("SYSTEM ERROR: INSUFFICIENT FUNDS.")
             else:
-                st.info("Logistics locked until next turn cycle.")
+                st.caption("🔒 LOGISTICS LOCKED: Awaiting next turn cycle.")
                 
         # Action: INVADE
         elif action_mode == "⚔️ Execute Strike":
             if not st.session_state.action_taken:
                 targets = [n.name for n in remaining_enemies]
-                # Swapped to radio button
                 target_name = st.radio("Designate Target Coordinates", targets)
                 if st.button("LAUNCH INVASION"):
                     target = next(n for n in nations if n.name == target_name)
@@ -258,11 +251,10 @@ else:
                     st.session_state.action_taken = True
                     st.rerun()
             else:
-                st.info("Military locked until next turn cycle.")
+                st.caption("🔒 MILITARY LOCKED: Awaiting next turn cycle.")
 
         # Action: END TURN
         elif action_mode == "⏭️ End Turn Cycle":
-            st.info("Advance time. Economies will scale. AI will reinforce.")
             if st.button("CONFIRM CYCLE END"):
                 player.economy += 20
                 if player.war_exhaustion > 0:
@@ -290,4 +282,3 @@ else:
     st.markdown("### SYSTEM LOG")
     log_content = "<br>".join([f"> {msg}" for msg in reversed(st.session_state.log[-6:])])
     st.markdown(f'<div class="terminal-box">{log_content}</div>', unsafe_allow_html=True)
-
