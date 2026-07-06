@@ -61,10 +61,10 @@ def apply_casualties(nation, severity=0.3):
             nation.units[unit_key] = max(0, count - lost)
 
 # =========================
-# INTERACTIVE WORLD MAPPER
+# STABLE INTERACTIVE MAP
 # =========================
 def render_interactive_map(nations, player):
-    locations = []
+    locations = [n.iso_alpha for n in nations]
     z_values = []
     hover_texts = []
     
@@ -72,49 +72,44 @@ def render_interactive_map(nations, player):
     colorscale = [[0.0, '#2d232e'], [0.33, '#d95763'], [0.66, '#3e734e'], [1.0, '#597dce']]
 
     for nation in nations:
-        locations.append(nation.iso_alpha)
         if nation.is_eliminated:
-            if nation.conquered_by == player.name:
-                status_val = 2  
-                status_txt = f"Conquered by {player.name.upper()}"
-            else:
-                status_val = 0  
-                status_txt = f"Eliminated by {nation.conquered_by.upper()}"
+            val = 2 if nation.conquered_by == player.name else 0
+            status_txt = f"Conquered by {player.name.upper()}" if nation.conquered_by == player.name else f"Eliminated by {nation.conquered_by.upper()}"
         else:
-            if nation.name == player.name:
-                status_val = 3  
-                status_txt = "PLAYER EMPIRE HEADQUARTERS"
-            else:
-                status_val = 1  
-                status_txt = f"Active Rival Faction (Mil Power: {nation.military_power():.1f})"
-                
-        z_values.append(status_val)
+            val = 3 if nation.name == player.name else 1
+            status_txt = "PLAYER HEADQUARTERS" if nation.name == player.name else f"Active Rival Faction (Power: {nation.military_power():.1f})"
+            
+        z_values.append(val)
         hover_texts.append(f"<b>{nation.name.upper()}</b><br>Status: {status_txt}<br>Economy Portfolio: ${nation.economy}M")
 
-    fig = go.Figure(data=go.Choropleth(
-        locations=locations,
-        z=z_values,
-        text=hover_texts,
-        hoverinfo="text",
-        colorscale=colorscale,
-        showscale=False,
-        marker_line_color='#1a1c2c',
-        marker_line_width=1.2,
-    ))
-
-    fig.update_layout(
-        geo=dict(
-            showframe=False,
-            showcoastlines=True,
-            projection_type='equirectangular',
-            backgroundcolor='#1a1c2c',
-            bgcolor='#1a1c2c',
-            landcolor='#2d232e',
-            coastlinecolor='#4a3d4c'
+    fig = go.Figure(
+        data=go.Choropleth(
+            locations=locations,
+            z=z_values,
+            text=hover_texts,
+            hoverinfo="text",
+            colorscale=colorscale,
+            showscale=False,
+            marker_line_color='#1a1c2c',
+            marker_line_width=1.2,
         ),
-        margin=dict(l=0, r=0, t=0, b=0),
-        height=320,
-        paper_bgcolor='#1a1c2c'
+        layout=dict(
+            margin={"r":0,"t":0,"l":0,"b":0},
+            height=320,
+            paper_bgcolor='#1a1c2c',
+            plot_bgcolor='#1a1c2c',
+            geo=dict(
+                showframe=False,
+                showcoastlines=True,
+                projection_type='equirectangular',
+                showland=True,
+                landcolor='#2d232e',
+                coastlinecolor='#4a3d4c',
+                showocean=False,
+                showcountries=True,
+                countrycolor='#4a3d4c'
+            )
+        )
     )
     return fig
 
@@ -266,7 +261,7 @@ else:
             else:
                 st.warning("🔒 Logistics deployment locks reset at the turn change.")
 
-        # 2. SKILL TREE (Based on image layout)
+        # 2. SKILL TREE
         elif "🌳" in action_mode:
             st.markdown("### 🧬 SYSTEM R&D TECHNOLOGY NETWORK")
             if st.session_state.action_tracking["research"]:
@@ -299,7 +294,7 @@ else:
                 v2 = player.skills["firefighting"] and not player.skills["armorer"]
                 render_skill_node(player, "armorer", "Armorer", 30, "Reinforced infantry chassis weaves.<br><span class='buff-txt'>+ Infantry Power +1.</span>", v2)
                 v3 = player.skills["armorer"] and not player.skills["apex"]
-                render_skill_node(player, "apex", "APEX Matrix", 200, "Advanced Predictive Executive Nexus.<br><span class='buff-txt'>+ Step Up turn yield to $50M.</span>", v3)
+                render_skill_node(player, "apex", "APEX Matrix", 200, "Advanced Predictive Executive Matrix.<br><span class='buff-txt'>+ Step Up turn yield to $50M.</span>", v3)
                 
             with t4:
                 st.markdown("<span style='color:#3bb87c; font-size:9px;'>🍃 CONCEAL</span>", unsafe_allow_html=True)
@@ -427,3 +422,4 @@ else:
     st.markdown("### STRATEGIC EVENT FEED")
     log_content = "<br>".join([f"> {msg}" for msg in reversed(st.session_state.log[-4:])])
     st.markdown(f'<div class="terminal-box">{log_content}</div>', unsafe_allow_html=True)
+
