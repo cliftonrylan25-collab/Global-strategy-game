@@ -15,14 +15,11 @@ class Nation:
         self.war_exhaustion = 0 
         self.is_eliminated = False
         self.conquered_by = None
-        # Expanded unit roster
         self.units = { "infantry": 0, "tanks": 0, "jets": 0 }
 
     def military_power(self):
         if self.is_eliminated: return 0
-        # Calculate base power + units
         current_power = self.base_military + (self.units["infantry"] * 1) + (self.units["tanks"] * 3) + (self.units["jets"] * 5)
-        # Apply exhaustion penalty (Caps at 50% penalty)
         penalty = max(0.5, 1 - (self.war_exhaustion * 0.05))
         return max(0, current_power * penalty)
 
@@ -39,32 +36,28 @@ def create_nations():
 # VISUAL MAP GENERATOR
 # =========================
 def render_visuals(nations, player): 
-    # Upgraded War Room Map Style
     fig, ax = plt.subplots(figsize=(8, 8), facecolor='#1a1c2c')
     ax.set_title("TACTICAL OVERVIEW", color='#f4f4f4', pad=20, weight='bold', fontsize=16)
     
     x, y = 0, 0
     for i, nation in enumerate(nations):
-        # Determine colors based on status
         if nation.is_eliminated:
             if nation.conquered_by == player.name:
-                color, edge = "#3e734e", "#1a1c2c" # Player Owned (Dark Green)
+                color, edge = "#3e734e", "#1a1c2c" 
             else:
-                color, edge = "#29366f", "#1a1c2c" # Enemy Owned (Dark Blue)
+                color, edge = "#29366f", "#1a1c2c" 
             label = f"{nation.original_name}\n({nation.conquered_by[:3]})"
         else:
             if nation.name == player.name:
-                color, edge = "#597dce", "#f4f4f4" # Player Main (Bright Blue, White Border)
+                color, edge = "#597dce", "#f4f4f4" 
             else:
-                color, edge = "#d95763", "#1a1c2c" # Unconquered AI (Red)
+                color, edge = "#d95763", "#1a1c2c" 
             label = f"{nation.original_name}\nMil: {nation.military_power():.1f}"
 
-        # Draw the territory blocks
         rect = patches.Rectangle((x, y), 1.8, 0.8, facecolor=color, edgecolor=edge, linewidth=3)
         ax.add_patch(rect)
         ax.text(x + 0.9, y + 0.4, label, ha="center", va="center", fontsize=9, color="white", weight="bold")
         
-        # Grid layout math for mobile spacing
         x += 2
         if (i + 1) % 4 == 0: 
             y -= 1
@@ -78,12 +71,10 @@ def render_visuals(nations, player):
 # =========================
 st.set_page_config(page_title="Global Conquest", layout="wide") 
 
-# Massive CSS injection to overhaul every default Streamlit visual
 pixel_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-/* Main App Font and Background */
 html, body, [class*="css"], [class*="st-"]  {
     font-family: 'Press Start 2P', cursive !important;
 }
@@ -92,7 +83,6 @@ html, body, [class*="css"], [class*="st-"]  {
     color: #f4f4f4;
 }
 
-/* Headers */
 h1 {
     color: #f4f4f4 !important;
     text-shadow: 4px 4px #d95763;
@@ -101,7 +91,6 @@ h1 {
 }
 h2, h3 { color: #597dce !important; }
 
-/* Dashboard Metrics Overlay */
 div[data-testid="metric-container"] {
     background-color: #1a1c2c;
     border: 3px solid #4a3d4c;
@@ -114,7 +103,6 @@ div[data-testid="stMetricValue"] {
     font-size: 16px !important;
 }
 
-/* Chunky Retro Buttons */
 .stButton>button {
     border: 4px solid #1a1c2c;
     background-color: #d95763;
@@ -125,6 +113,7 @@ div[data-testid="stMetricValue"] {
     font-size: 14px;
     padding: 15px;
     width: 100%;
+    margin-top: 10px;
 }
 .stButton>button:active {
     box-shadow: 0px 0px 0px #000000;
@@ -132,15 +121,18 @@ div[data-testid="stMetricValue"] {
     background-color: #ac3232;
 }
 
-/* Dropdowns and Select Menus */
-div[data-baseweb="select"] > div {
+/* Upgraded Radio Buttons for Mobile Tapping */
+div.row-widget.stRadio > div {
     background-color: #1a1c2c;
-    border: 4px solid #4a3d4c;
-    color: white;
+    border: 2px solid #4a3d4c;
+    padding: 15px;
     border-radius: 0px;
 }
+.stRadio label {
+    padding-bottom: 12px;
+    line-height: 1.5;
+}
 
-/* Terminal Log Box */
 .terminal-box {
     background-color: #000000;
     border: 2px solid #597dce;
@@ -155,7 +147,6 @@ div[data-baseweb="select"] > div {
 """
 st.markdown(pixel_css, unsafe_allow_html=True)
 
-# Main Title (Removed "Retro Edition")
 st.markdown("<h1>Global Conquest</h1>", unsafe_allow_html=True)
 
 # =========================
@@ -175,7 +166,8 @@ nations = st.session_state.nations
 # =========================
 if not st.session_state.game_started: 
     st.markdown("### INITIALIZE CAMPAIGN")
-    choice = st.selectbox("Select Superpower Faction:", [n.name for n in nations]) 
+    # Swapped to radio button
+    choice = st.radio("Select Superpower Faction:", [n.name for n in nations]) 
     if st.button("COMMENCE DOMINATION"): 
         st.session_state.player = next(n for n in nations if n.name == choice) 
         st.session_state.game_started = True 
@@ -188,7 +180,6 @@ else:
     player = st.session_state.player
     remaining_enemies = [n for n in nations if n != player and not n.is_eliminated]
     
-    # Win/Loss Conditions
     if not remaining_enemies:
         st.success("👑 TOTAL PLANETARY UNIFICATION ACHIEVED. YOU ARE SUPREME COMMANDER.")
         st.balloons()
@@ -196,7 +187,6 @@ else:
         st.error(f"💀 YOUR EMPIRE HAS FALLEN. CONQUERED BY {player.conquered_by.upper()}.")
     
     else:
-        # --- TOP DASHBOARD ---
         st.markdown(f"### TURN: {st.session_state.turn}")
         
         col1, col2, col3 = st.columns(3)
@@ -205,15 +195,13 @@ else:
         col3.metric("🔥 EXHAUSTION", f"{player.war_exhaustion}")
         
         st.write("War Exhaustion Level:")
-        st.progress(min(player.war_exhaustion / 15, 1.0)) # Fills up at 15 exhaustion
+        st.progress(min(player.war_exhaustion / 15, 1.0))
         
         st.write("---")
         
-        # --- ACTION WARNING ---
         if st.session_state.action_taken:
             st.warning("⚠️ AP EXPENDED. END TURN TO REFRESH COMMANDS.")
         
-        # --- MOBILE COMMAND MENU ---
         action_mode = st.radio(
             "COMMAND TERMINAL:",
             ["🛠️ Deploy Forces", "⚔️ Execute Strike", "⏭️ End Turn Cycle"]
@@ -224,13 +212,13 @@ else:
         # Action: BUILD
         if action_mode == "🛠️ Deploy Forces":
             if not st.session_state.action_taken:
-                unit = st.selectbox("Requisition Assets", [
+                # Swapped to radio button
+                unit = st.radio("Requisition Assets", [
                     "Infantry Battalion (Cost: 10 | Pow: 1)", 
                     "Armored Tanks (Cost: 25 | Pow: 3)",
                     "Fighter Squadron (Cost: 40 | Pow: 5)"
                 ])
                 if st.button("CONFIRM DEPLOYMENT"):
-                    # Determine costs and keys
                     if "Infantry" in unit: cost, key = 10, "infantry"
                     elif "Tanks" in unit: cost, key = 25, "tanks"
                     else: cost, key = 40, "jets"
@@ -250,21 +238,21 @@ else:
         elif action_mode == "⚔️ Execute Strike":
             if not st.session_state.action_taken:
                 targets = [n.name for n in remaining_enemies]
-                target_name = st.selectbox("Designate Target Coordinates", targets)
+                # Swapped to radio button
+                target_name = st.radio("Designate Target Coordinates", targets)
                 if st.button("LAUNCH INVASION"):
                     target = next(n for n in nations if n.name == target_name)
                     
-                    # Combat Math + Dice Roll Variance
                     atk_roll = player.military_power() + random.uniform(1.0, 5.0)
                     def_roll = target.military_power() + random.uniform(1.0, 5.0)
                     
                     if atk_roll > def_roll:
                         target.is_eliminated = True
                         target.conquered_by = player.name
-                        player.economy += target.economy # Loot their treasury
+                        player.economy += target.economy
                         st.session_state.log.append(f"VICTORY: {target.name.upper()} SECURED. Looted ${target.economy}M.")
                     else:
-                        player.war_exhaustion += 3 # High penalty for failure
+                        player.war_exhaustion += 3
                         st.session_state.log.append(f"DEFEAT: STRIKE ON {target.name.upper()} REPULSED. Exhaustion increased.")
                     
                     st.session_state.action_taken = True
@@ -276,15 +264,12 @@ else:
         elif action_mode == "⏭️ End Turn Cycle":
             st.info("Advance time. Economies will scale. AI will reinforce.")
             if st.button("CONFIRM CYCLE END"):
-                # Player passive recovery
                 player.economy += 20
                 if player.war_exhaustion > 0:
-                    player.war_exhaustion -= 1 # Slow cooldown of exhaustion
+                    player.war_exhaustion -= 1 
                 
-                # Advanced AI Turn Processing
                 for ai in remaining_enemies:
                     ai.economy += 15
-                    # AI randomly upgrades based on wealth
                     if ai.economy >= 40 and random.choice([True, False]):
                         ai.economy -= 40
                         ai.units["jets"] += 1
@@ -300,10 +285,8 @@ else:
                 st.session_state.log.append(f"CYCLE COMPLETE. Turn {st.session_state.turn} begins.")
                 st.rerun()
 
-    # --- MAP RENDER ---
     st.pyplot(render_visuals(nations, player))
     
-    # --- EVENT LOG TERMINAL ---
     st.markdown("### SYSTEM LOG")
     log_content = "<br>".join([f"> {msg}" for msg in reversed(st.session_state.log[-6:])])
     st.markdown(f'<div class="terminal-box">{log_content}</div>', unsafe_allow_html=True)
