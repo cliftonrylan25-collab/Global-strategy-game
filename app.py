@@ -36,7 +36,6 @@ def create_nations():
 # VISUAL MAP GENERATOR
 # =========================
 def render_visuals(nations, player): 
-    # Adjusted map background for the retro theme
     fig, ax = plt.subplots(figsize=(12, 6), facecolor='#2d232e')
     ax.set_title("Global Control Status", color='white', pad=20, weight='bold')
     
@@ -49,7 +48,6 @@ def render_visuals(nations, player):
             color = "#d95763" if nation.name != player.name else "#597dce"
             label = f"{nation.original_name}\nMil: {nation.military_power():.1f}"
 
-        # Retro chunky block design for map territories
         rect = patches.Rectangle((x, y), 1.8, 0.8, facecolor=color, edgecolor="#1a1c2c", linewidth=4)
         ax.add_patch(rect)
         ax.text(x + 0.9, y + 0.4, label, ha="center", va="center", fontsize=8, color="white", weight="bold")
@@ -67,7 +65,6 @@ def render_visuals(nations, player):
 # =========================
 st.set_page_config(layout="wide") 
 
-# Injecting Custom CSS for Retro 8-bit Style
 pixel_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -103,12 +100,25 @@ h1, h2, h3 {
     background-color: #ac3232;
 }
 
-/* Style selectboxes and inputs to match */
 div[data-baseweb="select"] > div {
     background-color: #4a3d4c;
     border: 4px solid #1a1c2c;
     color: white;
     border-radius: 0px;
+}
+
+/* Style the tabs to look retro */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 10px;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: #4a3d4c;
+    border: 4px solid #1a1c2c;
+    color: white;
+    padding: 10px 20px;
+}
+.stTabs [aria-selected="true"] {
+    background-color: #d95763;
 }
 </style>
 """
@@ -116,7 +126,6 @@ st.markdown(pixel_css, unsafe_allow_html=True)
 
 st.title("Global Conquest: Retro Edition")
 
-# Initialize State
 if "game_started" not in st.session_state: 
     st.session_state.game_started = False 
     st.session_state.turn = 1 
@@ -136,7 +145,6 @@ if not st.session_state.game_started:
 else: 
     player = st.session_state.player
     
-    # Victory/Defeat Check
     remaining_enemies = [n for n in nations if n != player and not n.is_eliminated]
     if not remaining_enemies:
         st.success("VICTORY: World Unification Achieved!")
@@ -152,45 +160,55 @@ else:
         if st.session_state.action_taken:
             st.warning("Action locked for this turn. End Turn to continue.")
         
-        action = st.selectbox("Command Center", ["Build Units", "Launch Invasion", "End Turn"])
+        # =========================
+        # DASHBOARD TABS
+        # =========================
+        tab_build, tab_invade, tab_end = st.tabs(["🛠️ Build Units", "⚔️ Launch Invasion", "⏭️ End Turn"])
         
-        if action == "Build Units" and not st.session_state.action_taken:
-            unit = st.selectbox("Select Unit", ["Infantry (Cost: 10)", "Tanks (Cost: 25)"])
-            if st.button("Deploy"):
-                cost = 10 if "Infantry" in unit else 25
-                unit_key = "infantry" if "Infantry" in unit else "tanks"
-                
-                if player.economy >= cost:
-                    player.economy -= cost
-                    player.units[unit_key] += 1
-                    st.session_state.action_taken = True
-                    st.session_state.log.append(f"Built 1 {unit_key}.")
-                    st.rerun()
-                else:
-                    st.error("Insufficient Econ.")
+        with tab_build:
+            if not st.session_state.action_taken:
+                unit = st.selectbox("Select Unit", ["Infantry (Cost: 10)", "Tanks (Cost: 25)"])
+                if st.button("Deploy"):
+                    cost = 10 if "Infantry" in unit else 25
+                    unit_key = "infantry" if "Infantry" in unit else "tanks"
                     
-        elif action == "Launch Invasion" and not st.session_state.action_taken:
-            targets = [n.name for n in remaining_enemies]
-            target_name = st.selectbox("Select Target", targets)
-            if st.button("Execute Strike"):
-                target = next(n for n in nations if n.name == target_name)
+                    if player.economy >= cost:
+                        player.economy -= cost
+                        player.units[unit_key] += 1
+                        st.session_state.action_taken = True
+                        st.session_state.log.append(f"Built 1 {unit_key}.")
+                        st.rerun()
+                    else:
+                        st.error("Insufficient Econ.")
+            else:
+                st.write("Command unavailable. Action already taken this turn.")
                 
-                atk_roll = player.military_power() + random.randint(1, 5)
-                def_roll = target.military_power() + random.randint(1, 5)
-                
-                if atk_roll > def_roll:
-                    target.is_eliminated = True
-                    target.conquered_by = player.name
-                    player.economy += target.economy
-                    st.session_state.log.append(f"CONQUEST: Defeated {target.name}!")
-                else:
-                    player.war_exhaustion += 2
-                    st.session_state.log.append(f"DEFEAT: {target.name} repelled invasion!")
-                
-                st.session_state.action_taken = True
-                st.rerun()
+        with tab_invade:
+            if not st.session_state.action_taken:
+                targets = [n.name for n in remaining_enemies]
+                target_name = st.selectbox("Select Target", targets)
+                if st.button("Execute Strike"):
+                    target = next(n for n in nations if n.name == target_name)
+                    
+                    atk_roll = player.military_power() + random.randint(1, 5)
+                    def_roll = target.military_power() + random.randint(1, 5)
+                    
+                    if atk_roll > def_roll:
+                        target.is_eliminated = True
+                        target.conquered_by = player.name
+                        player.economy += target.economy
+                        st.session_state.log.append(f"CONQUEST: Defeated {target.name}!")
+                    else:
+                        player.war_exhaustion += 2
+                        st.session_state.log.append(f"DEFEAT: {target.name} repelled invasion!")
+                    
+                    st.session_state.action_taken = True
+                    st.rerun()
+            else:
+                st.write("Command unavailable. Action already taken this turn.")
 
-        elif action == "End Turn":
+        with tab_end:
+            st.write("Advance to the next turn and collect Econ.")
             if st.button("Confirm End Turn"):
                 player.economy += 15
                 for ai in remaining_enemies:
@@ -203,6 +221,7 @@ else:
                 st.session_state.action_taken = False 
                 st.rerun()
 
+    # Visuals and Log below the dashboard
     st.pyplot(render_visuals(nations, player))
     
     st.subheader("Event Log")
