@@ -12,6 +12,7 @@ class Nation:
         self.original_name = name  
         self.economy = economy 
         self.base_military = military_power
+        self.base_income = 0  # NEW: Tracks permanent income boosts from conquests
         self.war_exhaustion = 0 
         self.is_eliminated = False
         self.conquered_by = None
@@ -64,23 +65,31 @@ def apply_casualties(nation, severity=0.3):
 # STABLE INTERACTIVE MAP
 # =========================
 def render_interactive_map(nations, player):
-    locations = [n.iso_alpha for n in nations]
+    locations = []
     z_values = []
     hover_texts = []
     
-    # Value keys: 0 = Unoccupied/Defeated AI, 1 = Rival Targets, 2 = Occupied Territories, 3 = Player Core
     colorscale = [[0.0, '#2d232e'], [0.33, '#d95763'], [0.66, '#3e734e'], [1.0, '#597dce']]
 
     for nation in nations:
+        locations.append(nation.iso_alpha)
+        
         if nation.is_eliminated:
             val = 2 if nation.conquered_by == player.name else 0
             status_txt = f"Conquered by {player.name.upper()}" if nation.conquered_by == player.name else f"Eliminated by {nation.conquered_by.upper()}"
+            hover_text = f"<b>{nation.name.upper()}</b><br>Status: {status_txt}"
         else:
-            val = 3 if nation.name == player.name else 1
-            status_txt = "PLAYER HEADQUARTERS" if nation.name == player.name else f"Active Rival Faction (Power: {nation.military_power():.1f})"
-            
+            if nation.name == player.name:
+                val = 3
+                hover_text = f"<b>{nation.name.upper()}</b><br>PLAYER HEADQUARTERS<br>Bonus Income: +${player.base_income}M/Turn"
+            else:
+                val = 1
+                # NEW: Hover intel for unconquered rivals
+                loot = int(nation.economy * 0.5)
+                hover_text = f"<b>{nation.name.upper()}</b><br>Status: Active Rival (Power: {nation.military_power():.1f})<br>💰 Conquest Loot: ${loot}M<br>📈 Income Boost: +$5M/Turn"
+                
         z_values.append(val)
-        hover_texts.append(f"<b>{nation.name.upper()}</b><br>Status: {status_txt}<br>Economy Portfolio: ${nation.economy}M")
+        hover_texts.append(hover_text)
 
     fig = go.Figure(
         data=go.Choropleth(
@@ -169,8 +178,6 @@ div.row-widget.stRadio > div { background-color: #1a1c2c; border: 2px solid #4a3
 .map-legend { display: flex; justify-content: space-around; background: #1a1c2c; padding: 8px; font-size: 8px; border: 2px solid #4a3d4c; margin-top: -10px; margin-bottom: 15px; }
 .legend-item { display: flex; align-items: center; }
 .legend-color { width: 12px; height: 12px; margin-right: 6px; border: 1px solid #fff; }
-
-/* Node Cards */
 .skill-card { background-color: #1a1c2c; border: 2px solid #4a3d4c; padding: 8px; margin-bottom: 8px; text-align: center; font-size: 8px; }
 .info-drawer { font-size: 7px; margin-top: 4px; text-align: left; background: #2d232e; padding: 4px; border-left: 2px solid #597dce; }
 .info-drawer summary { cursor: pointer; color: #597dce; text-align: center; list-style: none; }
@@ -221,7 +228,6 @@ else:
         st.markdown(f"<div style='font-size:8px; text-align:center; padding-bottom:10px;'>Assets: 🎖️ Inf x{player.units['infantry']} | 🚜 Tank x{player.units['tanks']} | ✈️ Jet x{player.units['jets']} | 🛰️ Sat x{player.units['orbital_satellites']}</div>", unsafe_allow_html=True)
         st.write("---")
         
-        # Division Status Flags
         d_status = "🔒" if st.session_state.action_tracking['deploy'] else "🟢"
         r_status = "🔒" if st.session_state.action_tracking['research'] else "🟢"
         a_status = "🔒" if st.session_state.action_tracking['aerospace'] else "🟢"
@@ -331,9 +337,13 @@ else:
                             player.units["orbital_satellites"] -= 1
                             target.is_eliminated = True
                             target.conquered_by = player.name
-                            player.economy += target.economy
+                            
+                            loot = int(target.economy * 0.5)
+                            player.economy += loot
+                            player.base_income += 5
+                            
                             st.session_state.action_tracking["aerospace"] = True
-                            st.session_state.log.append(f"💥 ION STRIKE: {target.name.upper()} wiped from arrays. Captured ${target.economy}M.")
+                            st.session_state.log.append(f"💥 ION STRIKE: {target.name.upper()} wiped. Looted ${loot}M & +$5M/Turn.")
                             st.rerun()
                         else:
                             st.error("SATELLITE MATRIX OFFLINE: REQUISITION REQUIRED.")
@@ -371,15 +381,20 @@ else:
                     def_roll = target.military_power() + random.uniform(1.0, 8.0)
                     
                     if atk_roll > def_roll:
+                        # NEW: Apply Conquest Dividends
                         target.is_eliminated = True
                         target.conquered_by = player.name
-                        player.economy += target.economy
+                        
+                        loot = int(target.economy * 0.5)
+                        player.economy += loot
+                        player.base_income += 5
+                        
                         apply_casualties(player, severity=0.15) 
-                        st.session_state.log.append(f"VICTORY: Overran frontlines in {target.name.upper()}. Secured ${target.economy}M.")
+                        st.session_state.log.append(f"VICTORY: Annexed {target.name.upper()}! Secured ${loot}M & +$5M/Turn.")
                     else:
                         player.war_exhaustion += 4
                         apply_casualties(player, severity=0.40) 
-                        st.session_state.log.append(f"TACTICAL BREAK: Assasult vector on {target.name.upper()} collapsed.")
+                        st.session_state.log.append(f"TACTICAL BREAK: Assault vector on {target.name.upper()} collapsed.")
                     
                     st.session_state.action_tracking["strike"] = True
                     st.rerun()
@@ -389,7 +404,10 @@ else:
         # 6. END TURN CYCLE
         elif "⏭️" in action_mode:
             if st.button("COMMIT AND FLUSH TURNS"):
-                econ_gain = 50 if player.skills["apex"] else 30
+                # NEW: Add permanent base_income to turn yield
+                base_yield = 50 if player.skills["apex"] else 30
+                econ_gain = base_yield + player.base_income 
+                
                 player.economy += econ_gain
                 if player.war_exhaustion > 0: player.war_exhaustion -= 1 
                 
@@ -403,7 +421,7 @@ else:
                 for key in st.session_state.action_tracking:
                     st.session_state.action_tracking[key] = False
                     
-                st.session_state.log.append(f"CYCLE COMPLETE: Beginning Tactical Cycle {st.session_state.turn}.")
+                st.session_state.log.append(f"CYCLE COMPLETE: Turn {st.session_state.turn} | Tax Yield: ${econ_gain}M.")
                 st.rerun()
 
     # RENDER PLOTLY CHOROPLETH GRAPH INTERACTIVE MAP
@@ -422,4 +440,3 @@ else:
     st.markdown("### STRATEGIC EVENT FEED")
     log_content = "<br>".join([f"> {msg}" for msg in reversed(st.session_state.log[-4:])])
     st.markdown(f'<div class="terminal-box">{log_content}</div>', unsafe_allow_html=True)
-
