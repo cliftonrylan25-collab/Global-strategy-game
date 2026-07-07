@@ -6,20 +6,20 @@ import plotly.graph_objects as go
 # GAME ENGINE & CLASSES
 # =========================
 class Nation: 
-    def __init__(self, name, iso_alpha, economy, military_power, perk_desc): 
+    def __init__(self, name, iso_codes, economy, military_power, perk_desc, is_cluster=False): 
         self.name = name 
-        self.iso_alpha = iso_alpha 
+        self.iso_codes = iso_codes # Now accepts a list of ISO alpha-3 codes
         self.economy = economy 
         self.base_military = military_power
         self.base_income = 0  
         self.war_exhaustion = 0 
         self.is_eliminated = False
         self.conquered_by = None
-        self.district = "None"  # Options: None, Garrison, Factory, Research Lab, Trade Port
+        self.is_cluster = is_cluster
+        self.district = "None"  
         self.units = { "infantry": 0, "tanks": 0, "jets": 0, "orbital_satellites": 0 }
         self.perk_desc = perk_desc
         
-        # 4-Branch Tech Tree Layout
         self.skills = {
             "repairs": False, "off_road": False, "sohc_4_valve": False,
             "situational_awareness": False, "recon": False, "aerospace": False,
@@ -30,7 +30,6 @@ class Nation:
     def military_power(self):
         if self.is_eliminated: return 0
         
-        # Base unit tuning
         inf_power = 2 if self.name == "Canada" else 1
         tank_power = 3
         jet_power = 5
@@ -42,7 +41,6 @@ class Nation:
         
         current_power = self.base_military + (self.units["infantry"] * inf_power) + (self.units["tanks"] * tank_power) + (self.units["jets"] * jet_power)
         
-        # Special District & Network Buffs
         if self.district == "Garrison": current_power += 6
         if self.district == "Factory": current_power += 10
         if self.skills["loot"]: current_power *= 1.25 
@@ -52,23 +50,33 @@ class Nation:
 
 def create_nations(): 
     nations = [ 
-        Nation("United States", "USA", 85, 12, "Air Superiority: Starts with Aerospace technology unlocked"), 
-        Nation("Canada", "CAN", 60, 6, "Northern Guard: Base Infantry assets possess +1 Power"), 
-        Nation("Mexico", "MEX", 55, 5, "Border Tolls: Permanently grants +$3M extra income per turn"), 
-        Nation("Brazil", "BRA", 70, 8, "Jungle Canopy: Starts with Off-Road operational mobility"), 
-        Nation("United Kingdom", "GBR", 70, 7, "Maritime Finance: Commences with +$3M base income dividends"), 
-        Nation("France", "FRA", 65, 7, "Foreign Legion: Infantry deployment cost optimized to $7M"), 
-        Nation("Germany", "DEU", 75, 9, "Advanced Engineering: SOHC 4V upgrade gives Tanks +4 Power"), 
-        Nation("Russia", "RUS", 80, 11, "Winter Attrition: Failed attacks against RUS inflict +2 Exhaustion"), 
-        Nation("China", "CHN", 95, 12, "Mass Production Engine: Infantry deployments cost only $5M"), 
-        Nation("India", "IND", 85, 9, "Tech Infrastructure Hub: Research Nodes cost 25% less money"), 
-        Nation("Japan", "JPN", 75, 7, "Industrial Conglomerate: Interceptor Squadrons discounted to $30M"), 
-        Nation("Saudi Arabia", "SAU", 90, 6, "Sovereign Wealth: Starts with an extra $60M capital reserves"),
-        Nation("South Africa", "ZAF", 65, 5, "Mineral Reserves: Permanently yields +$3M extra income per turn"), 
-        Nation("Australia", "AUS", 70, 6, "Deep Isolation: Highly secure geographic profile; rarely targeted by AI") 
+        # MAJOR POWERS
+        Nation("United States", ["USA"], 85, 12, "Air Superiority: Starts with Aerospace tech"), 
+        Nation("Canada", ["CAN"], 60, 6, "Northern Guard: Infantry possess +1 Power"), 
+        Nation("Mexico", ["MEX"], 55, 5, "Border Tolls: Permanently yields +$3M income"), 
+        Nation("Brazil", ["BRA"], 70, 8, "Jungle Canopy: Starts with Off-Road tech"), 
+        Nation("United Kingdom", ["GBR"], 70, 7, "Maritime Finance: Commences with +$3M income"), 
+        Nation("France", ["FRA"], 65, 7, "Foreign Legion: Infantry deployment optimized to $7M"), 
+        Nation("Germany", ["DEU"], 75, 9, "Advanced Engineering: SOHC 4V upgrade gives Tanks +4 Power"), 
+        Nation("Russia", ["RUS"], 80, 11, "Winter Attrition: Failed attacks against RUS inflict +2 Exhaustion"), 
+        Nation("China", ["CHN"], 95, 12, "Mass Production Engine: Infantry deployments cost $5M"), 
+        Nation("India", ["IND"], 85, 9, "Tech Infrastructure Hub: Research Nodes discounted 25%"), 
+        Nation("Japan", ["JPN"], 75, 7, "Industrial Conglomerate: Interceptors discounted to $30M"), 
+        Nation("Saudi Arabia", ["SAU"], 90, 6, "Sovereign Wealth: Starts with an extra $60M reserves"),
+        Nation("South Africa", ["ZAF"], 65, 5, "Mineral Reserves: Permanently yields +$3M income"), 
+        Nation("Australia", ["AUS"], 70, 6, "Deep Isolation: Highly secure geographic profile"),
+        
+        # REGIONAL CLUSTERS
+        Nation("European Union", ['ITA', 'ESP', 'POL', 'SWE', 'NOR', 'FIN', 'ROU', 'NLD', 'BEL', 'GRC', 'PRT', 'CZE', 'HUN', 'AUT', 'CHE', 'BGR', 'DNK', 'SVK', 'IRL', 'HRV', 'LTU', 'SVN', 'LVA', 'EST'], 140, 15, "Continental Coalition: High combined military and economic yield", True),
+        Nation("South American Coalition", ['ARG', 'COL', 'PER', 'VEN', 'CHL', 'ECU', 'BOL', 'PRY', 'URY', 'GUY', 'SUR'], 110, 10, "Resource Cartels: Extensive natural reserves", True),
+        Nation("African Continental Bloc", ['NGA', 'ETH', 'EGY', 'COD', 'TZA', 'KEN', 'UGA', 'DZA', 'SDN', 'MAR', 'AGO', 'GHA', 'MOZ', 'MDG', 'CIV', 'CMR', 'NER', 'BFA', 'MLI', 'MWI', 'ZMB', 'SEN', 'TCD', 'SOM', 'ZWE', 'GIN', 'RWA', 'BEN', 'BDI', 'SSD', 'ERI', 'SLE', 'TGO', 'LBY', 'CAF', 'MRT', 'COG', 'LBR', 'NAM', 'BWA', 'GMB', 'GAB', 'LSO', 'GNB', 'GNQ', 'MUS', 'SWZ', 'DJI'], 130, 11, "Emerging Markets: Massive population defense lines", True),
+        Nation("Middle East Pact", ['IRN', 'TUR', 'IRQ', 'YEM', 'SYR', 'JOR', 'ARE', 'ISR', 'LBN', 'OMN', 'KWT', 'QAT'], 120, 14, "Petro-State Defense: Hardened military fronts", True),
+        Nation("Southeast Asian Alliance", ['IDN', 'PHL', 'VNM', 'THA', 'MMR', 'MYS', 'KHM', 'LAO', 'SGP', 'BRN', 'TLS'], 115, 10, "Archipelago Network: Distributed economy", True),
+        Nation("Central Asian Federation", ['PAK', 'BGD', 'AFG', 'UZB', 'NPL', 'KAZ', 'LKA', 'TJK', 'KGZ', 'TKM', 'BTN', 'MNG'], 105, 9, "Steppe Vanguard: Difficult terrain defense", True),
+        Nation("Caribbean League", ['GTM', 'CUB', 'HTI', 'DOM', 'HND', 'NIC', 'SLV', 'CRI', 'PAN', 'JAM', 'TTO', 'BHS'], 80, 5, "Trade Gateways: Canal and shipping logistics", True),
+        Nation("Oceania Syndicate", ['NZL', 'PNG', 'FJI', 'SLB', 'VUT', 'WSM'], 60, 4, "Pacific Reach: Isolated island chains", True)
     ]
     
-    # Initialize faction-specific starting advantages
     for n in nations:
         if n.name == "United States": n.skills["aerospace"] = True
         elif n.name == "Brazil": n.skills["off_road"] = True
@@ -90,12 +98,10 @@ def apply_casualties(nation, severity=0.3):
 # =========================
 def resolve_combat(attacker, defender):
     rps_bonus = 0
-    # Strategic Unit Countering Logic
     if attacker.units["tanks"] > defender.units["infantry"] and defender.units["infantry"] > 0: rps_bonus += 4
     if attacker.units["jets"] > defender.units["tanks"] and defender.units["tanks"] > 0: rps_bonus += 5
     if attacker.units["infantry"] > defender.units["jets"] and defender.units["jets"] > 0: rps_bonus += 3
     
-    # District Defensive Structures
     def_district_bonus = 8 if defender.district == "Garrison" else 0
     
     atk_roll = attacker.military_power() + rps_bonus + random.uniform(1.0, 10.0)
@@ -111,7 +117,7 @@ def render_interactive_map(nations, player):
     colorscale = [[0.0, '#2d232e'], [0.33, '#d95763'], [0.66, '#3e734e'], [1.0, '#597dce']]
 
     for nation in nations:
-        locations.append(nation.iso_alpha)
+        # Determine status text and values once per nation
         if nation.is_eliminated:
             val = 2 if nation.conquered_by == player.name else 0
             status_txt = f"Annexed by {player.name.upper()}" if nation.conquered_by == player.name else f"Held by {nation.conquered_by.upper()}"
@@ -123,9 +129,14 @@ def render_interactive_map(nations, player):
             else:
                 val = 1
                 loot = int(nation.economy * 0.5)
-                hover_text = f"<b>{nation.name.upper()}</b><br>Status: Active Sovereign Rival<br>Combat Rating: {nation.military_power():.1f}<br>Perk: {nation.perk_desc}<br>💰 Loot Yield: ${loot}M"
-        z_values.append(val)
-        hover_texts.append(hover_text)
+                type_desc = "Regional Faction Cluster" if nation.is_cluster else "Active Sovereign Rival"
+                hover_text = f"<b>{nation.name.upper()}</b><br>Status: {type_desc}<br>Combat Rating: {nation.military_power():.1f}<br>Perk: {nation.perk_desc}<br>💰 Loot Yield: ${loot}M"
+
+        # Apply to all ISO codes associated with this Nation/Cluster
+        for iso_code in nation.iso_codes:
+            locations.append(iso_code)
+            z_values.append(val)
+            hover_texts.append(hover_text)
 
     fig = go.Figure(
         data=go.Choropleth(
@@ -204,7 +215,7 @@ div.row-widget.stRadio > div { background-color: #1a1c2c; border: 2px solid #4a3
 </style>
 """
 st.markdown(pixel_css, unsafe_allow_html=True)
-st.markdown("<h1>Global Conquest: Core Beta</h1>", unsafe_allow_html=True)
+st.markdown("<h1>Global Conquest: Regional Expansion</h1>", unsafe_allow_html=True)
 
 # =========================
 # STATE SEEDING
@@ -222,9 +233,9 @@ nations = st.session_state.nations
 
 if not st.session_state.game_started: 
     st.markdown("### 🖥️ CAMPAIGN CHARACTER ALLOCATION")
-    st.info("Select your starting faction. Global AI entities will adopt remaining attributes.")
+    st.info("Select your starting faction. Global AI entities and Regional Clusters will adopt remaining territory.")
     
-    choice_options = [f"{n.name} | {n.perk_desc}" for n in nations]
+    choice_options = [f"{n.name} | {n.perk_desc}" for n in nations if not n.is_cluster]
     selected_str = st.radio("Select Starting Empire:", choice_options)
     choice = selected_str.split(" | ")[0]
     
@@ -245,11 +256,9 @@ else:
     else:
         st.markdown(f"### 📊 GLOBAL CYCLE TACTICAL DATAFEED: TURN {st.session_state.turn}")
         
-        # Threat Alert Banner
         if st.session_state.current_event:
             st.error(f"🚨 ACTIVE WORLD MATRIX MUTATOR: {st.session_state.current_event.upper()}")
         
-        # Asset Management Dashboard
         m1, m2, m3 = st.columns(3)
         m1.metric("💰 BANK BALANCE", f"${player.economy}M")
         m2.metric("⚔️ NET POWER", f"{player.military_power():.1f}")
@@ -288,7 +297,6 @@ else:
                 st.rerun()
             st.write("---")
 
-        # Action Locking Toggles
         d_status = "🔒" if st.session_state.action_tracking['deploy'] else "🟢"
         r_status = "🔒" if st.session_state.action_tracking['research'] else "🟢"
         i_status = "🔒" if st.session_state.action_tracking['infrastructure'] else "🟢"
@@ -367,7 +375,7 @@ else:
         elif "🏢" in action_mode:
             st.markdown("### 🏢 SECTOR DISTRICT INFRASTRUCTURE MANAGEMENT")
             if not conquered_territories:
-                st.info("Annex foreign sovereign targets to unlock internal district specialization.")
+                st.info("Annex foreign sovereign targets or regional clusters to unlock internal district specialization.")
             elif st.session_state.action_tracking["infrastructure"]:
                 st.warning("🔒 Logistics teams deployed to construction zones. Locked.")
             else:
@@ -410,7 +418,7 @@ else:
                             st.rerun()
                         else: st.error("FUNDS UNFAVORABLE.")
                 else:
-                    target_name = st.radio("Input Vector Coordinates:", [n.name for n in remaining_enemies])
+                    target_name = st.selectbox("Input Vector Coordinates:", [n.name for n in remaining_enemies])
                     if st.button("ENGAGE ORBITAL STRIKE"):
                         if player.units["orbital_satellites"] >= 1:
                             target = next(n for n in nations if n.name == target_name)
@@ -430,7 +438,7 @@ else:
             if not st.session_state.action_tracking["covert"]:
                 op_cost = 12 if player.skills["loot"] else 25
                 st.info(f"Infiltrate backend bank networks. Cost Matrix: ${op_cost}M")
-                target_name = st.radio("Select Network Target Vector:", [n.name for n in remaining_enemies])
+                target_name = st.selectbox("Select Network Target Vector:", [n.name for n in remaining_enemies])
                 if st.button("ENGAGE SABOTAGE PROTOCOL"):
                     if player.economy >= op_cost:
                         player.economy -= op_cost
@@ -448,7 +456,7 @@ else:
         elif "⚔️" in action_mode:
             if not st.session_state.action_tracking["strike"]:
                 st.info("🎯 INTEL: Tanks break Infantry | Jets vaporize Tanks | Infantry traps Air elements.")
-                target_name = st.radio("Designate Conquest Frontline:", [n.name for n in remaining_enemies])
+                target_name = st.selectbox("Designate Conquest Frontline:", [n.name for n in remaining_enemies])
                 if st.button("LAUNCH REGIMENTAL STRIKE"):
                     target = next(n for n in nations if n.name == target_name)
                     
@@ -457,8 +465,6 @@ else:
                         target.conquered_by = player.name
                         loot = int(target.economy * 0.5)
                         player.economy += loot
-                        
-                        # Add base territory value
                         player.base_income += 6
                         apply_casualties(player, severity=0.15) 
                         st.session_state.log.append(f"⚔️ DOMINANCE: Conquered {target.name.upper()}! Looted ${loot}M & +$6M/Turn.")
@@ -468,7 +474,6 @@ else:
                         apply_casualties(player, severity=0.35) 
                         st.session_state.log.append(f"❌ COMPROMISED: Assault on {target.name.upper()} broke. Exhaustion +{penalty}.")
                         
-                        # Aggressive Enemy Counter-Attack Check
                         if random.random() < 0.40:
                             st.session_state.log.append(f"🚨 RETALIATION: {target.name.upper()} drove a column directly into our line!")
                             apply_casualties(player, severity=0.25)
@@ -481,7 +486,6 @@ else:
         elif "⏭️" in action_mode:
             if st.button("FLUSH ACTIVE TURNS"):
                 
-                # Dynamic Environment Mutation Engine
                 e_roll = random.random()
                 if e_roll < 0.12: st.session_state.current_event = "Market Crash"
                 elif e_roll < 0.24: st.session_state.current_event = "Tech Boom"
@@ -489,7 +493,6 @@ else:
                 elif e_roll < 0.48: st.session_state.current_event = "Economic Boom"
                 else: st.session_state.current_event = None
 
-                # Generate Start-Of-Turn Strategic Choice Popup
                 if random.random() < 0.35:
                     st.session_state.active_dilemma = {
                         "text": "A specialized corporate technology syndicate offers to lease out experimental logistics code systems to enhance weapon production speed.",
@@ -501,10 +504,8 @@ else:
                         "opt2_log": "Secure operations maintained. System core stabilized."
                     }
 
-                # Compute Dynamic Player Yields
                 base_yield = 50 if player.skills["apex"] else 30
                 
-                # Add regional infrastructure district multipliers
                 district_dividends = sum(12 for n in conquered_territories if n.district == "Port")
                 district_dividends += sum(5 for n in conquered_territories if n.district == "Lab")
                 
@@ -515,7 +516,6 @@ else:
                 player.economy += econ_gain
                 if player.war_exhaustion > 0: player.war_exhaustion -= 1 
                 
-                # Active Expansionist AI Matrix Engine
                 for ai in remaining_enemies:
                     if ai.is_eliminated: continue
                     
@@ -524,15 +524,12 @@ else:
                     if st.session_state.current_event == "Market Crash": ai_gain = max(5, ai_gain - 12)
                     ai.economy += ai_gain
                     
-                    # AI System Purchase Mechanics
                     if ai.economy >= 40:
                         ai.economy -= 40
                         ai.units[random.choice(["infantry", "tanks", "jets"])] += 1
                         
-                    # AI Invasions (18% probability check per loop)
                     if random.random() < 0.18 and ai.military_power() > 12:
                         potential_targets = [n for n in nations if n != ai and not n.is_eliminated]
-                        # Account for Australian geographic trait
                         potential_targets = [n for n in potential_targets if not (n.name == "Australia" and random.random() < 0.75)]
                         
                         if potential_targets:
@@ -546,7 +543,7 @@ else:
                                 if target.name == player.name:
                                     st.session_state.log.append(f"🚨 ALERT: {ai.name.upper()} systematically bypassed your frontier assets!")
                                 else:
-                                    st.session_state.log.append(f"🌍 THEATRE WIDE NEWS: {ai.name.upper()} annexed the territory of {target.name.upper()}.")
+                                    st.session_state.log.append(f"🌍 THEATRE WIDE NEWS: {ai.name.upper()} annexed {target.name.upper()}.")
                             else:
                                 ai.war_exhaustion += 2
 
@@ -555,15 +552,13 @@ else:
                 st.session_state.log.append(f"CYCLE COMPLETE: Rotated to Turn {st.session_state.turn} | Network Yield: +${econ_gain}M.")
                 st.rerun()
 
-    # RENDER CHOROPLETH GEOGRAPHY 
     st.plotly_chart(render_interactive_map(nations, player), use_container_width=True, config={'displayModeBar': False})
     
     st.markdown("""
     <div class='map-legend'>
         <div class='legend-item'><div class='legend-color' style='background:#597dce;'></div>User Empire</div>
-        <div class='legend-item'><div class='legend-color' style='background:#d95763;'></div>Sovereign Competitor</div>
+        <div class='legend-item'><div class='legend-color' style='background:#d95763;'></div>Sovereign Competitor / Cluster</div>
         <div class='legend-item'><div class='legend-color' style='background:#3e734e;'></div>Annexed Sector</div>
         <div class='legend-item'><div class='legend-color' style='background:#2d232e;'></div>Defeated Sector</div>
     </div>
     """, unsafe_allow_html=True)
-
